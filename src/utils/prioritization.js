@@ -80,20 +80,20 @@ function customScore(task, customFactors = []) {
 }
 
 // ── 5. PROJECT SCORE ─────────────────────────────────────────────────────────
-function projectScore(task, projects = []) {
-  if (!task.projectId) return 0;
-  const proj = projects.find(p => p.id === task.projectId);
-  return proj ? Number(proj.score) || 0 : 0;
+// Tasks marked as a project get a custom per-task point boost.
+function projectScore(task) {
+  if (!task.isProject) return 0;
+  return Number(task.projectBoost) || 0;
 }
 
 // ── COMBINED SCORE ───────────────────────────────────────────────────────────
-export function computePriorityScore(task, customFactors = [], projects = [], builtinConfig = DEFAULT_BUILTIN) {
+export function computePriorityScore(task, customFactors = [], _unused = [], builtinConfig = DEFAULT_BUILTIN) {
   return (
     urgencyScore(task.dueDate, builtinConfig.urgency) +
     difficultyScore(task.difficulty, builtinConfig.difficulty) +
     keywordScore(task.title, task.description) +
     customScore(task, customFactors) +
-    projectScore(task, projects)
+    projectScore(task)
   );
 }
 
@@ -105,10 +105,10 @@ export function priorityLabel(score) {
 }
 
 // ── SORT HELPER ──────────────────────────────────────────────────────────────
-export function sortByPriority(tasks, customFactors = [], projects = [], builtinConfig = DEFAULT_BUILTIN) {
+export function sortByPriority(tasks, customFactors = [], _unused = [], builtinConfig = DEFAULT_BUILTIN) {
   return [...tasks].sort((a, b) =>
-    computePriorityScore(b, customFactors, projects, builtinConfig) -
-    computePriorityScore(a, customFactors, projects, builtinConfig)
+    computePriorityScore(b, customFactors, [], builtinConfig) -
+    computePriorityScore(a, customFactors, [], builtinConfig)
   );
 }
 

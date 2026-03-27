@@ -1,19 +1,17 @@
 import { computePriorityScore, priorityLabel, formatDueDate } from '../utils/prioritization';
 
 export default function TaskItem({ task, customFactors = [], projects = [], builtinConfig, onComplete, onDelete, onEdit }) {
-  const score = computePriorityScore(task, customFactors, projects, builtinConfig);
+  const score = computePriorityScore(task, customFactors, [], builtinConfig);
   const label = priorityLabel(score);
   const dueDateText = formatDueDate(task.dueDate);
   const isOverdue = !task.completed && task.dueDate &&
     new Date(task.dueDate) < new Date(new Date().setHours(0, 0, 0, 0));
 
-  const project = projects.find(p => p.id === task.projectId);
-
   return (
     <div className={`task-item ${task.completed ? 'task-completed' : ''} priority-${label.toLowerCase()}`}>
-      {/* Project color stripe */}
-      {project && !task.completed && (
-        <div className="project-stripe" style={{ background: project.color }} title={project.name} />
+      {/* Project stripe */}
+      {task.isProject && !task.completed && (
+        <div className="project-stripe" title={`Project (+${task.projectBoost || 0} pts)`} />
       )}
 
       {/* Checkbox */}
@@ -46,9 +44,9 @@ export default function TaskItem({ task, customFactors = [], projects = [], buil
           )}
 
           {/* Project badge */}
-          {project && (
-            <span className="badge badge-project" style={{ borderColor: project.color, color: project.color, background: project.color + '15' }}>
-              {project.name}
+          {task.isProject && (
+            <span className="badge badge-project">
+              Project +{task.projectBoost || 0}pts
             </span>
           )}
 

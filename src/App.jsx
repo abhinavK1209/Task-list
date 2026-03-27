@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import TaskForm from './components/TaskForm';
 import TaskList from './components/TaskList';
 import FactorManager from './components/FactorManager';
-import ProjectManager from './components/ProjectManager';
 import { daysUntil, DEFAULT_BUILTIN } from './utils/prioritization';
 import './App.css';
 
@@ -33,12 +32,11 @@ export default function App() {
   const [tasks,         setTasks]         = useState(() => load(STORAGE_KEY,  []));
   const [customFactors, setCustomFactors] = useState(() => load(FACTORS_KEY,  []));
   const [builtinConfig, setBuiltinConfig] = useState(() => load(BUILTIN_KEY,  DEFAULT_BUILTIN));
-  const [projects,      setProjects]      = useState(() => load(PROJECTS_KEY, []));
+  const [projects] = useState([]); // kept for scoring API compat, unused
   const [filter,        setFilter]        = useState('all');
   const [editTask,      setEditTask]      = useState(null);
   const [showForm,      setShowForm]      = useState(false);
   const [showFactors,   setShowFactors]   = useState(false);
-  const [showProjects,  setShowProjects]  = useState(false);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEY,  JSON.stringify(tasks));         }, [tasks]);
   useEffect(() => { localStorage.setItem(FACTORS_KEY,  JSON.stringify(customFactors)); }, [customFactors]);
@@ -84,7 +82,7 @@ export default function App() {
     overdue:   active.filter(t => daysUntil(t.dueDate) < 0).length,
     'due-soon':active.filter(t => { const d = daysUntil(t.dueDate); return d >= 0 && d <= 7; }).length,
     upcoming:  active.filter(t => daysUntil(t.dueDate) > 7).length,
-    projects:  active.filter(t => t.projectId).length,
+    projects:  active.filter(t => t.isProject).length,
     completed: tasks.filter(t => t.completed).length,
   };
 
@@ -98,12 +96,6 @@ export default function App() {
               <span className="logo-text">TaskFlow</span>
             </div>
             <div className="header-actions">
-              <button className="btn-settings" onClick={() => setShowProjects(true)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                </svg>
-                Projects
-              </button>
               <button className="btn-settings" onClick={() => setShowFactors(true)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3"/>
@@ -190,13 +182,6 @@ export default function App() {
           projects={projects}
           onSave={handleSaveFactors}
           onClose={() => setShowFactors(false)}
-        />
-      )}
-      {showProjects && (
-        <ProjectManager
-          projects={projects}
-          onSave={setProjects}
-          onClose={() => setShowProjects(false)}
         />
       )}
     </div>

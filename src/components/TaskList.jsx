@@ -12,14 +12,8 @@ export default function TaskList({ tasks, filter, customFactors, projects, built
   const upcoming = sortByPriority(active.filter(t => daysUntil(t.dueDate) > 7), ...args);
   const sortedCompleted = [...completed].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
-  // Projects tab: active tasks that have a project, grouped by project
-  const tasksByProject = projects
-    .map(proj => ({
-      project: proj,
-      tasks: sortByPriority(active.filter(t => t.projectId === proj.id), ...args),
-    }))
-    .filter(g => g.tasks.length > 0);
-  const unassigned = sortByPriority(active.filter(t => !t.projectId), ...args);
+  // Projects tab: active tasks marked as a project
+  const projectTasks = sortByPriority(active.filter(t => t.isProject), ...args);
 
   let list = [];
   if (filter === 'all')       list = sortByPriority(active, ...args);
@@ -41,47 +35,20 @@ export default function TaskList({ tasks, filter, customFactors, projects, built
 
   // ── Projects tab ────────────────────────────────────────────────────────────
   if (filter === 'projects') {
-    // No projects created yet
-    if (projects.length === 0) {
+    if (projectTasks.length === 0) {
       return (
         <div className="empty-state">
           <span className="empty-icon">📁</span>
-          <p>No projects yet.</p>
+          <p>No project tasks yet.</p>
           <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>
-            Click <strong>Projects</strong> in the header to create one, then assign tasks to it.
+            When adding or editing a task, set <strong>Project?</strong> to <strong>Yes</strong>.
           </p>
         </div>
       );
     }
-
-    // Projects exist but none have tasks assigned
-    if (tasksByProject.length === 0) {
-      return (
-        <div className="empty-state">
-          <span className="empty-icon">📁</span>
-          <p>No tasks assigned to any project yet.</p>
-          <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>
-            Edit a task and pick a project from the Project dropdown.
-          </p>
-        </div>
-      );
-    }
-
     return (
-      <div className="task-list-wrapper">
-        {tasksByProject.map(({ project, tasks: ptasks }) => (
-          <section key={project.id} className="task-section">
-            <h3 className="section-label project-section-label" style={{ borderLeftColor: project.color }}>
-              <span className="project-dot" style={{ background: project.color }} />
-              {project.name}
-              <span className="count-badge">{ptasks.length}</span>
-              <span className="project-boost-badge">+{project.score} pts boost</span>
-            </h3>
-            <div className="task-cards">
-              {ptasks.map(task => <TaskItem key={task.id} task={task} {...itemProps} />)}
-            </div>
-          </section>
-        ))}
+      <div className="task-cards">
+        {projectTasks.map(task => <TaskItem key={task.id} task={task} {...itemProps} />)}
       </div>
     );
   }

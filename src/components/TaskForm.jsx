@@ -2,23 +2,24 @@ import { useState, useEffect } from 'react';
 
 const DIFFICULTIES = ['', 'Easy', 'Medium', 'Hard'];
 
-export default function TaskForm({ onSubmit, onCancel, editTask = null, customFactors = [], projects = [] }) {
-  const [form,     setForm]     = useState({ title: '', dueDate: '', description: '', difficulty: '', projectId: '' });
+export default function TaskForm({ onSubmit, onCancel, editTask = null, customFactors = [] }) {
+  const [form,     setForm]     = useState({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20 });
   const [cfValues, setCfValues] = useState({});
   const [errors,   setErrors]   = useState({});
 
   useEffect(() => {
     if (editTask) {
       setForm({
-        title:       editTask.title       || '',
-        dueDate:     editTask.dueDate     || '',
-        description: editTask.description || '',
-        difficulty:  editTask.difficulty  || '',
-        projectId:   editTask.projectId   || '',
+        title:        editTask.title        || '',
+        dueDate:      editTask.dueDate      || '',
+        description:  editTask.description  || '',
+        difficulty:   editTask.difficulty   || '',
+        isProject:    editTask.isProject    || false,
+        projectBoost: editTask.projectBoost ?? 20,
       });
       setCfValues(editTask.customFactors || {});
     } else {
-      setForm({ title: '', dueDate: '', description: '', difficulty: '', projectId: '' });
+      setForm({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20 });
       setCfValues({});
     }
     setErrors({});
@@ -46,11 +47,12 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
       dueDate:       form.dueDate,
       description:   form.description.trim(),
       difficulty:    form.difficulty,
-      projectId:     form.projectId || null,
+      isProject:     form.isProject,
+      projectBoost:  form.isProject ? Number(form.projectBoost) || 0 : 0,
       customFactors: cfValues,
     });
     if (!editTask) {
-      setForm({ title: '', dueDate: '', description: '', difficulty: '', projectId: '' });
+      setForm({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20 });
       setCfValues({});
     }
   }
@@ -88,18 +90,33 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
         </select>
       </div>
 
-      {/* Project */}
-      {projects.length > 0 && (
-        <div className="field">
-          <label htmlFor="projectId">Project</label>
-          <select id="projectId" name="projectId" value={form.projectId} onChange={handleChange}>
-            <option value="">— No project —</option>
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+      {/* Project toggle */}
+      <div className="field">
+        <label>Project?</label>
+        <div className="project-toggle-row">
+          <label className={`toggle-option ${!form.isProject ? 'selected' : ''}`}>
+            <input type="radio" name="isProject" checked={!form.isProject}
+              onChange={() => setForm(p => ({ ...p, isProject: false }))} />
+            No
+          </label>
+          <label className={`toggle-option ${form.isProject ? 'selected' : ''}`}>
+            <input type="radio" name="isProject" checked={form.isProject}
+              onChange={() => setForm(p => ({ ...p, isProject: true }))} />
+            Yes
+          </label>
+          {form.isProject && (
+            <div className="boost-input-row">
+              <span className="boost-label">Priority boost:</span>
+              <input type="number" min="0" max="200"
+                value={form.projectBoost}
+                onChange={e => setForm(p => ({ ...p, projectBoost: e.target.value }))}
+                className="boost-input"
+              />
+              <span className="option-pts-label">pts</span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Custom factors */}
       {customFactors.length > 0 && (
