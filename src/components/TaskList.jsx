@@ -1,31 +1,37 @@
 import TaskItem from './TaskItem';
 import { sortByPriority } from '../utils/prioritization';
 
+function today() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function daysUntil(dueDateStr) {
+  if (!dueDateStr) return Infinity;
+  const due = new Date(dueDateStr);
+  due.setHours(0, 0, 0, 0);
+  return Math.ceil((due - today()) / (1000 * 60 * 60 * 24));
+}
+
 /**
- * TaskList — renders active and completed task sections based on the active filter.
- * Props:
- *   tasks     — full task array
- *   filter    — 'all' | 'active' | 'completed'
- *   onComplete, onDelete, onEdit — handlers passed through to TaskItem
+ * TaskList — renders tasks split into Overdue / Due Soon / Upcoming / Completed.
  */
 export default function TaskList({ tasks, filter, onComplete, onDelete, onEdit }) {
-  // Split into active and completed
   const activeTasks    = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
 
-  // Sort active tasks by live priority score
-  const sortedActive    = sortByPriority(activeTasks);
-  // Completed tasks sorted by most recently completed
+  // Bucket active tasks by urgency
+  const overdue   = sortByPriority(activeTasks.filter(t => daysUntil(t.dueDate) < 0));
+  const dueSoon   = sortByPriority(activeTasks.filter(t => { const d = daysUntil(t.dueDate); return d >= 0 && d <= 7; }));
+  const upcoming  = sortByPriority(activeTasks.filter(t => daysUntil(t.dueDate) > 7));
+
   const sortedCompleted = [...completedTasks].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
   const showActive    = filter === 'all' || filter === 'active';
   const showCompleted = filter === 'all' || filter === 'completed';
 
-  const hasAnything = tasks.length > 0;
-  const hasActive   = activeTasks.length > 0;
-  const hasCompleted = completedTasks.length > 0;
-
-  if (!hasAnything) {
+  if (tasks.length === 0) {
     return (
       <div className="empty-state">
         <span className="empty-icon">📋</span>
@@ -34,41 +40,39 @@ export default function TaskList({ tasks, filter, onComplete, onDelete, onEdit }
     );
   }
 
+  function Section({ label, count, tasks, className = '' }) {
+    if (tasks.length === 0) return null;
+    return (
+      <section className={`task-section ${className}`}>
+        <h3 className={`section-label ${className}-label`}>
+          {label}
+          <span className="count-badge">{count}</span>
+        </h3>
+        <div className="task-cards">
+          {tasks.map(task => (
+            <TaskItem key={task.id} task={task}
+              onComplete={onComplete} onDelete={onDelete} onEdit={onEdit} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="task-list-wrapper">
-      {/* ── Active tasks ── */}
-      {showActive && (
-        <section className="task-section">
-          {filter === 'active' && hasActive === 0 ? (
-            <div className="empty-state small">
-              <p>All done! No active tasks.</p>
-            </div>
-          ) : (
-            <>
-              {filter === 'all' && (
-                <h3 className="section-label">
-                  Tasks
-                  <span className="count-badge">{activeTasks.length}</span>
-                </h3>
-              )}
-              <div className="task-cards">
-                {sortedActive.map(task => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
-                    onComplete={onComplete}
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </section>
+      {showActive && activeTasks.length === 0 && filter === 'active' && (
+        <div className="empty-state small"><p>All done! No active tasks.</p></div>
       )}
 
-      {/* ── Completed tasks ── */}
-      {showCompleted && hasCompleted && (
+      {showActive && (
+        <>
+          <Section label="Overdue"  count={overdue.length}  tasks={overdue}  className="section-overdue" />
+          <Section label="Due Soon" count={dueSoon.length}  tasks={dueSoon}  className="section-due-soon" />
+          <Section label="Upcoming" count={upcoming.length} tasks={upcoming} className="section-upcoming" />
+        </>
+      )}
+
+      {showCompleted && completedTasks.length > 0 && (
         <section className="task-section completed-section">
           <h3 className="section-label completed-label">
             Completed
@@ -76,22 +80,15 @@ export default function TaskList({ tasks, filter, onComplete, onDelete, onEdit }
           </h3>
           <div className="task-cards">
             {sortedCompleted.map(task => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onComplete={onComplete}
-                onDelete={onDelete}
-                onEdit={onEdit}
-              />
+              <TaskItem key={task.id} task={task}
+                onComplete={onComplete} onDelete={onDelete} onEdit={onEdit} />
             ))}
           </div>
         </section>
       )}
 
-      {showCompleted && !hasCompleted && filter === 'completed' && (
-        <div className="empty-state small">
-          <p>No completed tasks yet.</p>
-        </div>
+      {showCompleted && completedTasks.length === 0 && filter === 'completed' && (
+        <div className="empty-state small"><p>No completed tasks yet.</p></div>
       )}
     </div>
   );
