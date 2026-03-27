@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { computePriorityScore, priorityLabel, formatDueDate } from '../utils/prioritization';
 
 /**
@@ -10,22 +9,10 @@ import { computePriorityScore, priorityLabel, formatDueDate } from '../utils/pri
  *   onEdit      — open edit form for this task
  */
 export default function TaskItem({ task, onComplete, onDelete, onEdit }) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
   const score = computePriorityScore(task);
   const label = priorityLabel(score);
   const dueDateText = formatDueDate(task.dueDate);
   const isOverdue = !task.completed && task.dueDate && new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0));
-
-  function handleDeleteClick() {
-    if (confirmDelete) {
-      onDelete(task.id);
-    } else {
-      setConfirmDelete(true);
-      // Auto-reset confirmation after 3 seconds
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
-  }
 
   return (
     <div className={`task-item ${task.completed ? 'task-completed' : ''} priority-${label.toLowerCase()}`}>
@@ -97,23 +84,17 @@ export default function TaskItem({ task, onComplete, onDelete, onEdit }) {
 
         {task.completed && (
           <button
-            className={`btn-icon btn-delete ${confirmDelete ? 'confirming' : ''}`}
-            onClick={handleDeleteClick}
-            title={confirmDelete ? 'Click again to confirm delete' : 'Delete task'}
+            className="btn-icon btn-delete"
+            onClick={() => onDelete(task.id)}
+            title="Delete task"
             aria-label="Delete task"
           >
-            {confirmDelete ? (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-              </svg>
-            )}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
           </button>
         )}
       </div>
