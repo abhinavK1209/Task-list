@@ -1,53 +1,72 @@
 /**
  * PRIORITY SCORING SYSTEM
  * ========================
- * Score = urgencyScore + difficultyScore + keywordScore + customFactorScores
+ * Score = urgencyScore + difficultyScore + keywordScore + customFactorScores + projectScore
  *
- * Final score range: ~0–155+ (higher with custom factors)
- * Label thresholds:  High ≥ 80 | Medium ≥ 40 | Low < 40
+ * Built-in urgency and difficulty scores are fully configurable via builtinConfig.
  */
 
-// ── 1. URGENCY SCORE (0–100) ────────────────────────────────────────────────
-function urgencyScore(dueDateStr) {
+// ── Default built-in config (used when none is saved) ───────────────────────
+export const DEFAULT_BUILTIN = {
+  // Urgency brackets: checked top-to-bottom; first match wins.
+  // maxDays: -1 = overdue, null = catch-all (61+ days)
+  urgency: [
+    { label: 'Overdue',     maxDays: -1,  score: 100 },
+    { label: 'Due today',   maxDays: 0,   score: 100 },
+    { label: 'Tomorrow',    maxDays: 1,   score: 95  },
+    { label: '2–3 days',    maxDays: 3,   score: 85  },
+    { label: '4–7 days',    maxDays: 7,   score: 70  },
+    { label: '8–14 days',   maxDays: 14,  score: 50  },
+    { label: '15–30 days',  maxDays: 30,  score: 30  },
+    { label: '31–60 days',  maxDays: 60,  score: 15  },
+    { label: '61+ days',    maxDays: null, score: 5  },
+  ],
+  difficulty: [
+    { label: 'Hard',          score: 30 },
+    { label: 'Medium',        score: 20 },
+    { label: 'Easy',          score: 10 },
+    { label: 'Not specified', score: 15 },
+  ],
+};
+
+// ── 1. URGENCY SCORE ─────────────────────────────────────────────────────────
+function urgencyScore(dueDateStr, brackets = DEFAULT_BUILTIN.urgency) {
   if (!dueDateStr) return 0;
   const now = new Date(); now.setHours(0, 0, 0, 0);
   const due = new Date(dueDateStr); due.setHours(0, 0, 0, 0);
   const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
-  if (daysLeft <= 0)  return 100;
-  if (daysLeft === 1) return 95;
-  if (daysLeft <= 3)  return 85;
-  if (daysLeft <= 7)  return 70;
-  if (daysLeft <= 14) return 50;
-  if (daysLeft <= 30) return 30;
-  if (daysLeft <= 60) return 15;
-  return 5;
-}
 
-// ── 2. DIFFICULTY SCORE (0–30) ──────────────────────────────────────────────
-function difficultyScore(difficulty) {
-  switch (difficulty) {
-    case 'Hard':   return 30;
-    case 'Medium': return 20;
-    case 'Easy':   return 10;
-    default:       return 15;
+  for (const b of brackets) {
+    if (b.maxDays === -1 && daysLeft < 0)    return Number(b.score); // overdue
+    if (b.maxDays === null)                  return Number(b.score); // catch-all
+    if (b.maxDays >= 0 && daysLeft <= b.maxDays && daysLeft >= 0) return Number(b.score);
   }
+  return 0;
 }
 
-// ── 3. KEYWORD BOOST (0–25) ─────────────────────────────────────────────────
-const HIGH_PRIORITY_KEYWORDS   = ['exam', 'final', 'midterm', 'test', 'quiz'];
-const MEDIUM_PRIORITY_KEYWORDS = ['project', 'assignment', 'presentation', 'report', 'essay', 'paper'];
-const LOW_PRIORITY_KEYWORDS    = ['homework', 'hw', 'reading', 'review', 'study', 'practice'];
+// ── 2. DIFFICULTY SCORE ──────────────────────────────────────────────────────
+function difficultyScore(difficulty, options = DEFAULT_BUILTIN.difficulty) {
+  const match = options.find(o => o.label === difficulty);
+  if (match) return Number(match.score);
+  // fallback to "Not specified"
+  const fallback = options.find(o => o.label === 'Not specified');
+  return fallback ? Number(fallback.score) : 15;
+}
+
+// ── 3. KEYWORD BOOST ─────────────────────────────────────────────────────────
+const HIGH_KEYWORDS   = ['exam', 'final', 'midterm', 'test', 'quiz'];
+const MEDIUM_KEYWORDS = ['project', 'assignment', 'presentation', 'report', 'essay', 'paper'];
+const LOW_KEYWORDS    = ['homework', 'hw', 'reading', 'review', 'study', 'practice'];
 
 function keywordScore(title = '', description = '') {
   const text = `${title} ${description}`.toLowerCase();
-  if (HIGH_PRIORITY_KEYWORDS.some(kw => text.includes(kw)))   return 25;
-  if (MEDIUM_PRIORITY_KEYWORDS.some(kw => text.includes(kw))) return 15;
-  if (LOW_PRIORITY_KEYWORDS.some(kw => text.includes(kw)))    return 8;
+  if (HIGH_KEYWORDS.some(k => text.includes(k)))   return 25;
+  if (MEDIUM_KEYWORDS.some(k => text.includes(k))) return 15;
+  if (LOW_KEYWORDS.some(k => text.includes(k)))    return 8;
   return 0;
 }
 
 // ── 4. CUSTOM FACTOR SCORE ───────────────────────────────────────────────────
-// Sums the scores of any user-defined factors applied to the task.
 function customScore(task, customFactors = []) {
   let total = 0;
   for (const factor of customFactors) {
@@ -60,13 +79,21 @@ function customScore(task, customFactors = []) {
   return total;
 }
 
+// ── 5. PROJECT SCORE ─────────────────────────────────────────────────────────
+function projectScore(task, projects = []) {
+  if (!task.projectId) return 0;
+  const proj = projects.find(p => p.id === task.projectId);
+  return proj ? Number(proj.score) || 0 : 0;
+}
+
 // ── COMBINED SCORE ───────────────────────────────────────────────────────────
-export function computePriorityScore(task, customFactors = []) {
+export function computePriorityScore(task, customFactors = [], projects = [], builtinConfig = DEFAULT_BUILTIN) {
   return (
-    urgencyScore(task.dueDate) +
-    difficultyScore(task.difficulty) +
+    urgencyScore(task.dueDate, builtinConfig.urgency) +
+    difficultyScore(task.difficulty, builtinConfig.difficulty) +
     keywordScore(task.title, task.description) +
-    customScore(task, customFactors)
+    customScore(task, customFactors) +
+    projectScore(task, projects)
   );
 }
 
@@ -78,9 +105,10 @@ export function priorityLabel(score) {
 }
 
 // ── SORT HELPER ──────────────────────────────────────────────────────────────
-export function sortByPriority(tasks, customFactors = []) {
+export function sortByPriority(tasks, customFactors = [], projects = [], builtinConfig = DEFAULT_BUILTIN) {
   return [...tasks].sort((a, b) =>
-    computePriorityScore(b, customFactors) - computePriorityScore(a, customFactors)
+    computePriorityScore(b, customFactors, projects, builtinConfig) -
+    computePriorityScore(a, customFactors, projects, builtinConfig)
   );
 }
 
@@ -97,11 +125,11 @@ export function formatDueDate(dueDateStr) {
   if (!dueDateStr) return 'No due date';
   const now = new Date(); now.setHours(0, 0, 0, 0);
   const due = new Date(dueDateStr); due.setHours(0, 0, 0, 0);
-  const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
-  const formatted = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  if (daysLeft < 0)   return `${formatted} (${Math.abs(daysLeft)}d overdue)`;
-  if (daysLeft === 0) return `${formatted} (Due today)`;
-  if (daysLeft === 1) return `${formatted} (Tomorrow)`;
-  if (daysLeft <= 7)  return `${formatted} (${daysLeft}d left)`;
-  return formatted;
+  const d = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  const fmt = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (d < 0)  return `${fmt} (${Math.abs(d)}d overdue)`;
+  if (d === 0) return `${fmt} (Due today)`;
+  if (d === 1) return `${fmt} (Tomorrow)`;
+  if (d <= 7)  return `${fmt} (${d}d left)`;
+  return fmt;
 }

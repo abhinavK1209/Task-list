@@ -2,18 +2,10 @@ import { useState, useEffect } from 'react';
 
 const DIFFICULTIES = ['', 'Easy', 'Medium', 'Hard'];
 
-/**
- * TaskForm — create or edit a task.
- * Props:
- *   onSubmit(taskData)  — called with form values
- *   onCancel()          — called when user cancels (edit mode)
- *   editTask            — pre-fills form when editing; null = create mode
- *   customFactors       — array of user-defined priority factors
- */
-export default function TaskForm({ onSubmit, onCancel, editTask = null, customFactors = [] }) {
-  const [form, setForm]   = useState({ title: '', dueDate: '', description: '', difficulty: '' });
-  const [cfValues, setCfValues] = useState({});  // custom factor selections
-  const [errors, setErrors] = useState({});
+export default function TaskForm({ onSubmit, onCancel, editTask = null, customFactors = [], projects = [] }) {
+  const [form,     setForm]     = useState({ title: '', dueDate: '', description: '', difficulty: '', projectId: '' });
+  const [cfValues, setCfValues] = useState({});
+  const [errors,   setErrors]   = useState({});
 
   useEffect(() => {
     if (editTask) {
@@ -22,10 +14,11 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
         dueDate:     editTask.dueDate     || '',
         description: editTask.description || '',
         difficulty:  editTask.difficulty  || '',
+        projectId:   editTask.projectId   || '',
       });
       setCfValues(editTask.customFactors || {});
     } else {
-      setForm({ title: '', dueDate: '', description: '', difficulty: '' });
+      setForm({ title: '', dueDate: '', description: '', difficulty: '', projectId: '' });
       setCfValues({});
     }
     setErrors({});
@@ -37,30 +30,27 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: undefined }));
   }
 
-  function handleCfChange(factorId, value) {
-    setCfValues(prev => ({ ...prev, [factorId]: value }));
-  }
-
-  function validate() {
-    const errs = {};
-    if (!form.title.trim()) errs.title = 'Title is required.';
-    if (!form.dueDate)      errs.dueDate = 'Due date is required.';
-    return errs;
+  function clearFactor(factorId) {
+    setCfValues(prev => { const n = { ...prev }; delete n[factorId]; return n; });
   }
 
   function handleSubmit(e) {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    const errs = {};
+    if (!form.title.trim()) errs.title = 'Title is required.';
+    if (!form.dueDate)      errs.dueDate = 'Due date is required.';
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+
     onSubmit({
       title:         form.title.trim(),
       dueDate:       form.dueDate,
       description:   form.description.trim(),
       difficulty:    form.difficulty,
+      projectId:     form.projectId || null,
       customFactors: cfValues,
     });
     if (!editTask) {
-      setForm({ title: '', dueDate: '', description: '', difficulty: '' });
+      setForm({ title: '', dueDate: '', description: '', difficulty: '', projectId: '' });
       setCfValues({});
     }
   }
@@ -74,12 +64,10 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
       {/* Title */}
       <div className="field">
         <label htmlFor="title">Task Title *</label>
-        <input id="title" name="title" type="text"
+        <input id="title" name="title" type="text" autoFocus={!isEditing}
           placeholder="e.g. Midterm Exam – Biology"
           value={form.title} onChange={handleChange}
-          className={errors.title ? 'input-error' : ''}
-          autoFocus={!isEditing}
-        />
+          className={errors.title ? 'input-error' : ''} />
         {errors.title && <span className="error-msg">{errors.title}</span>}
       </div>
 
@@ -88,8 +76,7 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
         <label htmlFor="dueDate">Due Date *</label>
         <input id="dueDate" name="dueDate" type="date"
           value={form.dueDate} onChange={handleChange}
-          className={errors.dueDate ? 'input-error' : ''}
-        />
+          className={errors.dueDate ? 'input-error' : ''} />
         {errors.dueDate && <span className="error-msg">{errors.dueDate}</span>}
       </div>
 
@@ -97,37 +84,59 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
       <div className="field">
         <label htmlFor="difficulty">Difficulty</label>
         <select id="difficulty" name="difficulty" value={form.difficulty} onChange={handleChange}>
-          {DIFFICULTIES.map(d => (
-            <option key={d} value={d}>{d || '— Not specified —'}</option>
-          ))}
+          {DIFFICULTIES.map(d => <option key={d} value={d}>{d || '— Not specified —'}</option>)}
         </select>
       </div>
 
-      {/* ── Custom factor fields ── */}
+      {/* Project */}
+      {projects.length > 0 && (
+        <div className="field">
+          <label htmlFor="projectId">Project</label>
+          <select id="projectId" name="projectId" value={form.projectId} onChange={handleChange}>
+            <option value="">— No project —</option>
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Custom factors */}
       {customFactors.length > 0 && (
         <div className="custom-factors-section">
           <p className="custom-factors-label">Custom Factors</p>
           {customFactors.map(factor => {
             const validOpts = factor.options.filter(o => o.label && o.score !== '');
             if (!validOpts.length) return null;
+            const hasValue = !!cfValues[factor.id];
             return (
               <div className="field" key={factor.id}>
-                <label htmlFor={`cf-${factor.id}`}>{factor.name}</label>
-                <select
-                  id={`cf-${factor.id}`}
-                  value={cfValues[factor.id] || ''}
-                  onChange={e => handleCfChange(factor.id, e.target.value)}
-                >
-                  <option value="">— Not specified —</option>
-                  {validOpts
-                    .slice()
-                    .sort((a, b) => Number(b.score) - Number(a.score))
-                    .map(opt => (
-                      <option key={opt.label} value={opt.label}>
-                        {opt.label} (+{opt.score} pts)
-                      </option>
-                    ))}
-                </select>
+                <label>{factor.name}</label>
+                <div className="cf-field-row">
+                  <select
+                    value={cfValues[factor.id] || ''}
+                    onChange={e => setCfValues(prev => ({ ...prev, [factor.id]: e.target.value }))}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="">— Not specified —</option>
+                    {validOpts
+                      .slice().sort((a, b) => Number(b.score) - Number(a.score))
+                      .map(opt => (
+                        <option key={opt.label} value={opt.label}>
+                          {opt.label} (+{opt.score} pts)
+                        </option>
+                      ))}
+                  </select>
+                  {/* Per-task factor clear button */}
+                  {hasValue && (
+                    <button type="button" className="btn-icon btn-clear-factor"
+                      onClick={() => clearFactor(factor.id)} title={`Remove ${factor.name} from this task`}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -139,15 +148,11 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
         <label htmlFor="description">Description <span className="optional">(optional)</span></label>
         <textarea id="description" name="description" rows={3}
           placeholder="Add notes, topics to study, etc."
-          value={form.description} onChange={handleChange}
-        />
+          value={form.description} onChange={handleChange} />
       </div>
 
-      {/* Actions */}
       <div className="form-actions">
-        {isEditing && (
-          <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-        )}
+        {isEditing && <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>}
         <button type="submit" className="btn btn-primary">
           {isEditing ? 'Save Changes' : '+ Add Task'}
         </button>
