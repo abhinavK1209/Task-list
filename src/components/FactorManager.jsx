@@ -135,6 +135,54 @@ function FactorEditor({ factor, onChange, onDelete }) {
   );
 }
 
+// ── Summary table of saved factors ───────────────────────────────────────────
+function FactorSummary({ factors }) {
+  if (!factors.length) return null;
+  return (
+    <div className="factor-summary">
+      <p className="factor-summary-title">Current Factors</p>
+      <table className="factor-table">
+        <thead>
+          <tr>
+            <th>Factor</th>
+            <th>Option</th>
+            <th>Score</th>
+            <th>Weight</th>
+          </tr>
+        </thead>
+        <tbody>
+          {factors.map(factor => {
+            const validOpts = factor.options
+              .filter(o => o.label && o.score !== '')
+              .slice()
+              .sort((a, b) => Number(b.score) - Number(a.score));
+            const max = validOpts.length ? Number(validOpts[0].score) : 1;
+            return validOpts.map((opt, i) => (
+              <tr key={`${factor.id}-${i}`}>
+                {i === 0 && (
+                  <td rowSpan={validOpts.length} className="factor-name-cell">
+                    {factor.name}
+                  </td>
+                )}
+                <td>{opt.label}</td>
+                <td className="pts-cell">{opt.score} pts</td>
+                <td className="bar-cell">
+                  <div className="mini-track">
+                    <div
+                      className="mini-bar"
+                      style={{ width: `${Math.round((Number(opt.score) / max) * 100)}%` }}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ));
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Main panel ───────────────────────────────────────────────────────────────
 export default function FactorManager({ factors, onSave, onClose }) {
   const [local, setLocal] = useState(() => JSON.parse(JSON.stringify(factors)));
@@ -176,6 +224,8 @@ export default function FactorManager({ factors, onSave, onClose }) {
           Create your own scoring factors. Each factor's score adds to a task's priority —
           the higher the total score, the higher the task ranks.
         </p>
+
+        <FactorSummary factors={factors} />
 
         <div className="factor-list">
           {local.length === 0 && (

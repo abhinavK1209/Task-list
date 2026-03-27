@@ -279,6 +279,46 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
   padding: 16px 24px; border-top: 1px solid var(--border); flex-shrink: 0;
 }
 
+/* ── Factor summary table ────────────────────────────────── */
+.factor-summary { padding: 0 24px 4px; flex-shrink: 0; }
+
+.factor-summary-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .7px; color: var(--text-3); margin-bottom: 8px;
+}
+
+.factor-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.factor-table th {
+  text-align: left; padding: 7px 10px;
+  background: var(--surface-2); color: var(--text-2);
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; border-bottom: 1px solid var(--border);
+}
+
+.factor-table td {
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.factor-table tr:last-child td { border-bottom: none; }
+
+.factor-name-cell {
+  font-weight: 600; color: var(--text);
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.pts-cell { font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+.bar-cell { width: 100px; }
+.mini-track { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.mini-bar   { height: 100%; background: var(--accent); border-radius: 99px; min-width: 3px; }
+
 /* ── Factor editor card ──────────────────────────────────── */
 .factor-editor {
   background: var(--surface-2); border: 1px solid var(--border);
