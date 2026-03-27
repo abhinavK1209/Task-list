@@ -41,9 +41,32 @@ export default function TaskList({ tasks, filter, customFactors, projects, built
 
   // ── Projects tab ────────────────────────────────────────────────────────────
   if (filter === 'projects') {
-    if (tasksByProject.length === 0 && unassigned.length === 0) {
-      return <div className="empty-state small"><p>No tasks with projects assigned.</p></div>;
+    // No projects created yet
+    if (projects.length === 0) {
+      return (
+        <div className="empty-state">
+          <span className="empty-icon">📁</span>
+          <p>No projects yet.</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>
+            Click <strong>Projects</strong> in the header to create one, then assign tasks to it.
+          </p>
+        </div>
+      );
     }
+
+    // Projects exist but none have tasks assigned
+    if (tasksByProject.length === 0) {
+      return (
+        <div className="empty-state">
+          <span className="empty-icon">📁</span>
+          <p>No tasks assigned to any project yet.</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-3)' }}>
+            Edit a task and pick a project from the Project dropdown.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="task-list-wrapper">
         {tasksByProject.map(({ project, tasks: ptasks }) => (
@@ -59,17 +82,6 @@ export default function TaskList({ tasks, filter, customFactors, projects, built
             </div>
           </section>
         ))}
-        {unassigned.length > 0 && (
-          <section className="task-section">
-            <h3 className="section-label">
-              No Project
-              <span className="count-badge">{unassigned.length}</span>
-            </h3>
-            <div className="task-cards">
-              {unassigned.map(task => <TaskItem key={task.id} task={task} {...itemProps} />)}
-            </div>
-          </section>
-        )}
       </div>
     );
   }
