@@ -1,11 +1,10 @@
-import { computePriorityScore, priorityLabel, formatDueDate } from '../utils/prioritization';
+import { computePriorityScore, priorityLabel, formatDueDate, daysUntil } from '../utils/prioritization';
 
 export default function TaskItem({ task, customFactors = [], projects = [], builtinConfig, onComplete, onDelete, onEdit }) {
   const score = computePriorityScore(task, customFactors, [], builtinConfig);
   const label = priorityLabel(score);
   const dueDateText = formatDueDate(task.dueDate);
-  const isOverdue = !task.completed && task.dueDate &&
-    new Date(task.dueDate) < new Date(new Date().setHours(0, 0, 0, 0));
+  const isOverdue = !task.completed && daysUntil(task.dueDate) < 0;
 
   return (
     <div className={`task-item ${task.completed ? 'task-completed' : ''} priority-${label.toLowerCase()}`}>

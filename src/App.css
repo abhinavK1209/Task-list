@@ -166,13 +166,21 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .filter-tab.tab-all.active       { background: var(--text); color: #fff; border-color: var(--text); }
 .filter-tab.tab-overdue.active   { background: #dc2626; color: #fff; border-color: #dc2626; }
 .filter-tab.tab-due-soon.active  { background: #d97706; color: #fff; border-color: #d97706; }
-.filter-tab.tab-upcoming.active  { background: var(--accent); color: #fff; border-color: var(--accent); }
+.filter-tab.tab-upcoming.active  { background: #16a34a; color: #fff; border-color: #16a34a; }
+.filter-tab.tab-projects.active  { background: var(--accent); color: #fff; border-color: var(--accent); }
 .filter-tab.tab-completed.active { background: var(--text-2); color: #fff; border-color: var(--text-2); }
 
-/* Dot indicators on inactive overdue/due-soon tabs */
+/* Dot indicators on inactive tabs */
 .filter-tab.tab-overdue:not(.active)  .tab-count { background: #fee2e2; color: #dc2626; }
 .filter-tab.tab-due-soon:not(.active) .tab-count { background: #fef3c7; color: #d97706; }
-.filter-tab.tab-upcoming:not(.active) .tab-count { background: #dbeafe; color: #1d4ed8; }
+.filter-tab.tab-upcoming:not(.active) .tab-count { background: #dcfce7; color: #16a34a; }
+.filter-tab.tab-projects:not(.active) .tab-count { background: #dbeafe; color: #1d4ed8; }
+
+/* Custom factor tabs */
+.filter-tab.tab-custom:not(.active) .tab-count {
+  background: color-mix(in srgb, var(--custom-tab-color, #8b5cf6) 15%, white);
+  color: var(--custom-tab-color, #8b5cf6);
+}
 
 .tab-count {
   display: inline-flex; align-items: center; justify-content: center;
@@ -448,6 +456,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
   font-size: 14px; font-family: var(--font);
 }
 .boost-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+
+.tab-color-input {
+  width: 36px; height: 28px; padding: 2px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; background: none;
+}
 
 /* ── CF clear button in form ─────────────────────────────── */
 .cf-field-row { display: flex; align-items: center; gap: 6px; }

@@ -15,13 +15,6 @@ export default function TaskList({ tasks, filter, customFactors, projects, built
   // Projects tab: active tasks marked as a project
   const projectTasks = sortByPriority(active.filter(t => t.isProject), ...args);
 
-  let list = [];
-  if (filter === 'all')       list = sortByPriority(active, ...args);
-  else if (filter === 'overdue')   list = overdue;
-  else if (filter === 'due-soon')  list = dueSoon;
-  else if (filter === 'upcoming')  list = upcoming;
-  else if (filter === 'completed') list = sortedCompleted;
-
   const itemProps = { customFactors, projects, builtinConfig, onComplete, onDelete, onEdit };
 
   if (tasks.length === 0) {
@@ -53,7 +46,34 @@ export default function TaskList({ tasks, filter, customFactors, projects, built
     );
   }
 
+  // ── Custom factor tabs (cf-{factorId}) ────────────────────────────────────
+  const cfMatch = filter.match(/^cf-(.+)/);
+  if (cfMatch) {
+    const factorId = cfMatch[1];
+    const factor = customFactors.find(f => f.id === factorId);
+    const cfTasks = sortByPriority(active.filter(t => t.customFactors?.[factorId]), ...args);
+    if (cfTasks.length === 0) {
+      return (
+        <div className="empty-state small">
+          <p>No tasks with <strong>{factor?.name || 'this factor'}</strong> set.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="task-cards">
+        {cfTasks.map(task => <TaskItem key={task.id} task={task} {...itemProps} />)}
+      </div>
+    );
+  }
+
   // ── Standard tabs ────────────────────────────────────────────────────────────
+  let list = [];
+  if (filter === 'all')            list = sortByPriority(active, ...args);
+  else if (filter === 'overdue')   list = overdue;
+  else if (filter === 'due-soon')  list = dueSoon;
+  else if (filter === 'upcoming')  list = upcoming;
+  else if (filter === 'completed') list = sortedCompleted;
+
   if (list.length === 0) {
     const msgs = {
       overdue:   'No overdue tasks.',

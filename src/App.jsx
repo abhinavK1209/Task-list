@@ -27,14 +27,13 @@ function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-// ── Tabs ─────────────────────────────────────────────────────────────────────
-const TABS = [
+// ── Static tabs ───────────────────────────────────────────────────────────────
+const STATIC_TABS = [
   { id: 'all',       label: 'All',       cls: 'tab-all' },
   { id: 'overdue',   label: 'Overdue',   cls: 'tab-overdue' },
   { id: 'due-soon',  label: 'Due Soon',  cls: 'tab-due-soon' },
   { id: 'upcoming',  label: 'Upcoming',  cls: 'tab-upcoming' },
   { id: 'projects',  label: 'Projects',  cls: 'tab-projects' },
-  { id: 'completed', label: 'Completed', cls: 'tab-completed' },
 ];
 
 export default function App() {
@@ -152,6 +151,7 @@ export default function App() {
   const handleAddTask = useCallback((formData) => {
     const newTask = { id: generateId(), ...formData, completed: false, createdAt: Date.now() };
     firestoreSet(newTask);
+    setShowForm(false);
   }, [user?.uid]);
 
   const handleEditSubmit = useCallback((formData) => {
@@ -179,6 +179,10 @@ export default function App() {
 
   // ── Tab counts ────────────────────────────────────────────────────────────
   const active = tasks.filter(t => !t.completed);
+  const cfCounts = {};
+  customFactors.filter(f => f.isTab && f.name).forEach(f => {
+    cfCounts[`cf-${f.id}`] = active.filter(t => t.customFactors?.[f.id]).length;
+  });
   const counts = {
     all:        active.length,
     overdue:    active.filter(t => daysUntil(t.dueDate) < 0).length,
@@ -186,7 +190,18 @@ export default function App() {
     upcoming:   active.filter(t => daysUntil(t.dueDate) > 7).length,
     projects:   active.filter(t => t.isProject).length,
     completed:  tasks.filter(t => t.completed).length,
+    ...cfCounts,
   };
+
+  // ── Dynamic tabs (custom factor tabs inserted before Completed) ───────────
+  const customTabs = customFactors
+    .filter(f => f.isTab && f.name)
+    .map(f => ({ id: `cf-${f.id}`, label: f.name, cls: 'tab-custom', color: f.tabColor || '#8b5cf6' }));
+  const ALL_TABS = [
+    ...STATIC_TABS,
+    ...customTabs,
+    { id: 'completed', label: 'Completed', cls: 'tab-completed' },
+  ];
 
   if (!authReady) {
     return <div className="app-loading"><span className="logo-icon">✓</span></div>;
@@ -272,14 +287,24 @@ export default function App() {
         )}
 
         <div className="filter-tabs" role="tablist">
-          {TABS.map(tab => (
-            <button key={tab.id} role="tab" aria-selected={filter === tab.id}
-              className={`filter-tab ${tab.cls} ${filter === tab.id ? 'active' : ''}`}
-              onClick={() => setFilter(tab.id)}>
-              {tab.label}
-              {counts[tab.id] > 0 && <span className="tab-count">{counts[tab.id]}</span>}
-            </button>
-          ))}
+          {ALL_TABS.map(tab => {
+            const isActive = filter === tab.id;
+            const isCustom = tab.cls === 'tab-custom';
+            const style = isCustom
+              ? isActive
+                ? { background: tab.color, borderColor: tab.color, color: '#fff' }
+                : { '--custom-tab-color': tab.color }
+              : {};
+            return (
+              <button key={tab.id} role="tab" aria-selected={isActive}
+                className={`filter-tab ${tab.cls} ${isActive ? 'active' : ''}`}
+                style={style}
+                onClick={() => setFilter(tab.id)}>
+                {tab.label}
+                {counts[tab.id] > 0 && <span className="tab-count">{counts[tab.id]}</span>}
+              </button>
+            );
+          })}
         </div>
 
         <TaskList

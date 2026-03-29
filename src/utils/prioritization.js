@@ -29,11 +29,17 @@ export const DEFAULT_BUILTIN = {
   ],
 };
 
+// Parse YYYY-MM-DD as local midnight (avoids UTC-offset day shift)
+function parseLocalDate(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 // ── 1. URGENCY SCORE ─────────────────────────────────────────────────────────
 function urgencyScore(dueDateStr, brackets = DEFAULT_BUILTIN.urgency) {
   if (!dueDateStr) return 0;
   const now = new Date(); now.setHours(0, 0, 0, 0);
-  const due = new Date(dueDateStr); due.setHours(0, 0, 0, 0);
+  const due = parseLocalDate(dueDateStr);
   const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
 
   for (const b of brackets) {
@@ -116,7 +122,7 @@ export function sortByPriority(tasks, customFactors = [], _unused = [], builtinC
 export function daysUntil(dueDateStr) {
   if (!dueDateStr) return Infinity;
   const now = new Date(); now.setHours(0, 0, 0, 0);
-  const due = new Date(dueDateStr); due.setHours(0, 0, 0, 0);
+  const due = parseLocalDate(dueDateStr);
   return Math.ceil((due - now) / (1000 * 60 * 60 * 24));
 }
 
@@ -124,7 +130,7 @@ export function daysUntil(dueDateStr) {
 export function formatDueDate(dueDateStr) {
   if (!dueDateStr) return 'No due date';
   const now = new Date(); now.setHours(0, 0, 0, 0);
-  const due = new Date(dueDateStr); due.setHours(0, 0, 0, 0);
+  const due = parseLocalDate(dueDateStr);
   const d = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
   const fmt = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   if (d < 0)  return `${fmt} (${Math.abs(d)}d overdue)`;

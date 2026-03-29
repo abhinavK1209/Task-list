@@ -15,6 +15,8 @@ function emptyFactor() {
     id: Math.random().toString(36).slice(2) + Date.now().toString(36),
     name: '',
     options: [{ label: '', score: '' }, { label: '', score: '' }],
+    isTab: false,
+    tabColor: '#8b5cf6',
   };
 }
 
@@ -187,6 +189,9 @@ function FactorEditor({ factor, onChange, onDelete }) {
     onChange({ ...factor, options: factor.options.filter((_, idx) => idx !== i) });
   }
 
+  const isTab = factor.isTab ?? false;
+  const tabColor = factor.tabColor ?? '#8b5cf6';
+
   return (
     <div className="factor-editor">
       <div className="factor-editor-header">
@@ -202,6 +207,32 @@ function FactorEditor({ factor, onChange, onDelete }) {
           </svg>
         </button>
       </div>
+
+      {/* Tab toggle */}
+      <div className="field">
+        <label>Show as filter tab?</label>
+        <div className="project-toggle-row">
+          <label className={`toggle-option ${!isTab ? 'selected' : ''}`}>
+            <input type="radio" name={`isTab-${factor.id}`} checked={!isTab}
+              onChange={() => onChange({ ...factor, isTab: false })} />
+            No
+          </label>
+          <label className={`toggle-option ${isTab ? 'selected' : ''}`}>
+            <input type="radio" name={`isTab-${factor.id}`} checked={isTab}
+              onChange={() => onChange({ ...factor, isTab: true })} />
+            Yes
+          </label>
+          {isTab && (
+            <div className="boost-input-row">
+              <span className="boost-label">Tab color:</span>
+              <input type="color" value={tabColor}
+                onChange={e => onChange({ ...factor, tabColor: e.target.value })}
+                className="tab-color-input" />
+            </div>
+          )}
+        </div>
+      </div>
+
       <p className="factor-hint">Each option adds its score to a task's priority when selected.</p>
       <div className="options-list">
         {factor.options.map((opt, i) => (
