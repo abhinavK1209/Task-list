@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   onAuthStateChanged, signOut,
 } from 'firebase/auth';
@@ -51,6 +51,20 @@ export default function App() {
   const [editTask,      setEditTask]      = useState(null);
   const [showForm,      setShowForm]      = useState(false);
   const [showFactors,   setShowFactors]   = useState(false);
+  const tabsRef = useRef(null);
+
+  // ── Scroll wheel → horizontal scroll on tabs ──────────────────────────────
+  useEffect(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   // ── Firebase auth listener ────────────────────────────────────────────────
   useEffect(() => {
@@ -286,7 +300,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="filter-tabs" role="tablist">
+        <div className="filter-tabs" role="tablist" ref={tabsRef}>
           {ALL_TABS.map(tab => {
             const isActive = filter === tab.id;
             const isCustom = tab.cls === 'tab-custom';
