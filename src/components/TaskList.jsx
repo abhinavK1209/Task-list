@@ -118,7 +118,7 @@ export default function TaskList({
             isDragging={dragId === task.id}
             isDragOver={dragOverId === task.id}
             dragAbove={dragAbove}
-            dragHandleProps={isCompletedTab ? {} : {
+            dragProps={isCompletedTab ? {} : {
               draggable: true,
               onDragStart: e => handleDragStart(e, task),
               onDragOver:  e => handleDragOver(e, task),

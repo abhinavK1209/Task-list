@@ -3,29 +3,29 @@ import { computePriorityScore, priorityLabel, formatDueDate, daysUntil } from '.
 export default function TaskItem({
   task, customFactors = [], builtinConfig,
   onComplete, onDelete, onEdit, onUnpin,
-  dragHandleProps = {}, isDragging = false, isDragOver = false, dragAbove = false,
+  dragProps = {},
+  isDragging = false, isDragOver = false, dragAbove = false,
 }) {
-  const score    = computePriorityScore(task, customFactors, [], builtinConfig);
-  const label    = priorityLabel(score);
+  const score       = computePriorityScore(task, customFactors, [], builtinConfig);
+  const label       = priorityLabel(score);
   const dueDateText = formatDueDate(task.dueDate);
   const isOverdue   = !task.completed && daysUntil(task.dueDate) < 0;
-  const isPinned    = task.manualOrder !== undefined;
+  const isManual    = task.manualOrder !== undefined;
 
   const cls = [
     'task-item',
-    task.completed        ? 'task-completed'  : `priority-${label.toLowerCase()}`,
-    task.isProject && !task.completed ? 'task-project' : '',
-    isPinned              ? 'task-pinned'      : '',
-    isDragging            ? 'task-dragging'    : '',
-    isDragOver && dragAbove  ? 'drop-above'   : '',
-    isDragOver && !dragAbove ? 'drop-below'   : '',
+    task.completed ? 'task-completed' : `priority-${label.toLowerCase()}`,
+    isManual                          ? 'task-manual'   : '',
+    isDragging                        ? 'task-dragging' : '',
+    isDragOver && dragAbove           ? 'drop-above'    : '',
+    isDragOver && !dragAbove          ? 'drop-below'    : '',
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={cls}>
-      {/* Drag handle */}
+    <div className={cls} {...dragProps}>
+      {/* Drag handle — visual only, drag fires on the whole card */}
       {!task.completed && (
-        <div className="drag-handle" title="Drag to reorder" {...dragHandleProps}>
+        <div className="drag-handle" title="Drag to reorder">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
             <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
@@ -84,9 +84,9 @@ export default function TaskItem({
           })}
 
           {!task.completed && (
-            isPinned ? (
-              <span className="badge badge-pinned">
-                📌 Pinned
+            isManual ? (
+              <span className="badge badge-manual">
+                Manual
                 <button className="btn-unpin" onClick={() => onUnpin(task.id)} title="Return to auto-sort">×</button>
               </span>
             ) : (

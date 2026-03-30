@@ -225,9 +225,11 @@ function FactorEditor({ factor, onChange, onDelete }) {
           {isTab && (
             <div className="boost-input-row">
               <span className="boost-label">Tab color:</span>
-              <input type="color" value={tabColor}
-                onChange={e => onChange({ ...factor, tabColor: e.target.value })}
-                className="tab-color-input" />
+              <div className="tab-color-wrapper" style={{ background: tabColor }}>
+                <input type="color" value={tabColor}
+                  onChange={e => onChange({ ...factor, tabColor: e.target.value })}
+                  className="tab-color-input" />
+              </div>
             </div>
           )}
         </div>

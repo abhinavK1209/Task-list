@@ -207,14 +207,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .task-item.priority-low    { border-left-color: var(--low); }
 .task-item.task-completed  { border-left-color: var(--border); opacity: .6; }
 
-/* Project indicator on the RIGHT so it never conflicts with the left priority stripe */
-.task-item.task-project { border-right: 3px solid var(--accent); }
-
 /* Manual order / drag states */
-.task-item.task-pinned  { border-left-style: dashed; }
-.task-item.task-dragging { opacity: .35; }
-.task-item.drop-above { border-top: 2.5px solid var(--accent); }
-.task-item.drop-below { border-bottom: 2.5px solid var(--accent); }
+.task-item.task-manual   { border-left-style: dashed; }
+.task-item.task-dragging { opacity: .35; cursor: grabbing; }
+.task-item.drop-above    { border-top: 2.5px solid var(--accent); }
+.task-item.drop-below    { border-bottom: 2.5px solid var(--accent); }
 
 /* ── Checkbox ────────────────────────────────────────────── */
 .checkbox {
@@ -427,7 +424,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .drag-handle:active { cursor: grabbing; }
 
 /* ── Pinned badge ────────────────────────────────────────── */
-.badge-pinned {
+.badge-manual {
   background: #faf5ff; color: #7c3aed; border-color: #ddd6fe;
   display: inline-flex; align-items: center; gap: 4px;
 }
@@ -491,15 +488,16 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 }
 .boost-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
 
-.tab-color-input {
-  width: 36px; height: 28px; padding: 0;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  cursor: pointer; overflow: hidden;
-  -webkit-appearance: none; appearance: none;
+/* Color picker: wrapper shows the color, transparent input captures clicks */
+.tab-color-wrapper {
+  width: 36px; height: 28px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); position: relative; overflow: hidden;
+  cursor: pointer; flex-shrink: 0;
 }
-.tab-color-input::-webkit-color-swatch-wrapper { padding: 0; }
-.tab-color-input::-webkit-color-swatch { border: none; border-radius: 0; }
-.tab-color-input::-moz-color-swatch { border: none; }
+.tab-color-input {
+  position: absolute; inset: -6px; width: calc(100% + 12px); height: calc(100% + 12px);
+  opacity: 0; cursor: pointer; border: none; padding: 0;
+}
 
 /* ── CF clear button in form ─────────────────────────────── */
 .cf-field-row { display: flex; align-items: center; gap: 6px; }
