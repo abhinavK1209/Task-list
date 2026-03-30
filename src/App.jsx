@@ -186,6 +186,33 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  // ── Manual ordering ───────────────────────────────────────────────────────
+  function handleReorder(draggedId, targetId, insertBefore, displayList) {
+    const without = displayList.filter(t => t.id !== draggedId);
+    const targetIdx = without.findIndex(t => t.id === targetId);
+    const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+    without.splice(insertIdx, 0, displayList.find(t => t.id === draggedId));
+    // Assign manualOrder to every task now in displayList
+    without.forEach((t, i) => {
+      const updated = { ...t, manualOrder: i * 10 };
+      firestoreSet(updated);
+    });
+  }
+
+  function handleUnpin(id) {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const { manualOrder, ...rest } = task;
+    firestoreSet(rest);
+  }
+
+  function handleResetOrder() {
+    tasks.filter(t => t.manualOrder !== undefined).forEach(t => {
+      const { manualOrder, ...rest } = t;
+      firestoreSet(rest);
+    });
+  }
+
   function handleSaveFactors({ factors, builtinConfig: bc }) {
     setCustomFactors(factors);
     setBuiltinConfig(bc);
@@ -325,11 +352,13 @@ export default function App() {
           tasks={tasks}
           filter={filter}
           customFactors={customFactors}
-          projects={[]}
           builtinConfig={builtinConfig}
           onComplete={handleComplete}
           onDelete={handleDelete}
           onEdit={handleEditOpen}
+          onUnpin={handleUnpin}
+          onReorder={handleReorder}
+          onResetOrder={handleResetOrder}
         />
       </main>
 

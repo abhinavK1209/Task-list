@@ -207,6 +207,15 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .task-item.priority-low    { border-left-color: var(--low); }
 .task-item.task-completed  { border-left-color: var(--border); opacity: .6; }
 
+/* Project indicator on the RIGHT so it never conflicts with the left priority stripe */
+.task-item.task-project { border-right: 3px solid var(--accent); }
+
+/* Manual order / drag states */
+.task-item.task-pinned  { border-left-style: dashed; }
+.task-item.task-dragging { opacity: .35; }
+.task-item.drop-above { border-top: 2.5px solid var(--accent); }
+.task-item.drop-below { border-bottom: 2.5px solid var(--accent); }
+
 /* ── Checkbox ────────────────────────────────────────────── */
 .checkbox {
   flex-shrink: 0; width: 22px; height: 22px; border: 2px solid var(--border);
@@ -408,17 +417,36 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .color-dot:hover { transform: scale(1.2); }
 .color-dot.selected { border-color: var(--text); transform: scale(1.15); }
 
-/* ── Project stripe on task card ─────────────────────────── */
-.task-item { position: relative; }
-.project-stripe {
-  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-  border-radius: var(--radius) 0 0 var(--radius);
-  background: var(--accent);
+/* ── Drag handle ─────────────────────────────────────────── */
+.drag-handle {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 18px; color: var(--border); cursor: grab; opacity: 0;
+  transition: opacity .15s; margin-left: -4px; align-self: center;
 }
-/* When project stripe exists, shift content */
-.task-item:has(.project-stripe) { padding-left: 20px; }
+.task-item:hover .drag-handle { opacity: 1; color: var(--text-3); }
+.drag-handle:active { cursor: grabbing; }
 
-.badge-project { font-weight: 600; }
+/* ── Pinned badge ────────────────────────────────────────── */
+.badge-pinned {
+  background: #faf5ff; color: #7c3aed; border-color: #ddd6fe;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.btn-unpin {
+  border: none; background: none; color: #7c3aed; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0; margin-left: 2px;
+  opacity: .7; font-family: var(--font);
+}
+.btn-unpin:hover { opacity: 1; }
+
+/* ── Auto-sort reset bar ─────────────────────────────────── */
+.manual-order-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: #faf5ff; border: 1px solid #ddd6fe;
+  border-radius: var(--radius-sm); font-size: 13px; color: #7c3aed;
+  margin-bottom: 8px;
+}
+
+.badge-project { background: #eff6ff; color: var(--accent); border-color: #bfdbfe; font-weight: 600; }
 
 /* ── Projects tab section headers ────────────────────────── */
 .task-list-wrapper { display: flex; flex-direction: column; gap: 20px; }
@@ -464,10 +492,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
 .boost-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
 
 .tab-color-input {
-  width: 36px; height: 28px; padding: 2px;
+  width: 36px; height: 28px; padding: 0;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  cursor: pointer; background: none;
+  cursor: pointer; overflow: hidden;
+  -webkit-appearance: none; appearance: none;
 }
+.tab-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.tab-color-input::-webkit-color-swatch { border: none; border-radius: 0; }
+.tab-color-input::-moz-color-swatch { border: none; }
 
 /* ── CF clear button in form ─────────────────────────────── */
 .cf-field-row { display: flex; align-items: center; gap: 6px; }

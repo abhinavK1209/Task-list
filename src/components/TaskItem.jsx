@@ -1,16 +1,37 @@
 import { computePriorityScore, priorityLabel, formatDueDate, daysUntil } from '../utils/prioritization';
 
-export default function TaskItem({ task, customFactors = [], projects = [], builtinConfig, onComplete, onDelete, onEdit }) {
-  const score = computePriorityScore(task, customFactors, [], builtinConfig);
-  const label = priorityLabel(score);
+export default function TaskItem({
+  task, customFactors = [], builtinConfig,
+  onComplete, onDelete, onEdit, onUnpin,
+  dragHandleProps = {}, isDragging = false, isDragOver = false, dragAbove = false,
+}) {
+  const score    = computePriorityScore(task, customFactors, [], builtinConfig);
+  const label    = priorityLabel(score);
   const dueDateText = formatDueDate(task.dueDate);
-  const isOverdue = !task.completed && daysUntil(task.dueDate) < 0;
+  const isOverdue   = !task.completed && daysUntil(task.dueDate) < 0;
+  const isPinned    = task.manualOrder !== undefined;
+
+  const cls = [
+    'task-item',
+    task.completed        ? 'task-completed'  : `priority-${label.toLowerCase()}`,
+    task.isProject && !task.completed ? 'task-project' : '',
+    isPinned              ? 'task-pinned'      : '',
+    isDragging            ? 'task-dragging'    : '',
+    isDragOver && dragAbove  ? 'drop-above'   : '',
+    isDragOver && !dragAbove ? 'drop-below'   : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className={`task-item ${task.completed ? 'task-completed' : ''} priority-${label.toLowerCase()}`}>
-      {/* Project stripe */}
-      {task.isProject && !task.completed && (
-        <div className="project-stripe" title={`Project (+${task.projectBoost || 0} pts)`} />
+    <div className={cls}>
+      {/* Drag handle */}
+      {!task.completed && (
+        <div className="drag-handle" title="Drag to reorder" {...dragHandleProps}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+            <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+            <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+          </svg>
+        </div>
       )}
 
       {/* Checkbox */}
@@ -52,14 +73,10 @@ export default function TaskItem({ task, customFactors = [], projects = [], buil
             <span className={`badge difficulty-${task.difficulty.toLowerCase()}`}>{task.difficulty}</span>
           )}
 
-          {/* Project badge */}
           {task.isProject && (
-            <span className="badge badge-project">
-              Project +{task.projectBoost || 0}pts
-            </span>
+            <span className="badge badge-project">Project +{task.projectBoost || 0}pts</span>
           )}
 
-          {/* Custom factor badges */}
           {customFactors.map(factor => {
             const val = task.customFactors?.[factor.id];
             if (!val) return null;
@@ -67,7 +84,14 @@ export default function TaskItem({ task, customFactors = [], projects = [], buil
           })}
 
           {!task.completed && (
-            <span className={`badge priority-badge priority-${label.toLowerCase()}`}>{label} Priority</span>
+            isPinned ? (
+              <span className="badge badge-pinned">
+                📌 Pinned
+                <button className="btn-unpin" onClick={() => onUnpin(task.id)} title="Return to auto-sort">×</button>
+              </span>
+            ) : (
+              <span className={`badge priority-badge priority-${label.toLowerCase()}`}>{label} Priority</span>
+            )
           )}
         </div>
       </div>
