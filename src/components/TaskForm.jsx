@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 const DIFFICULTIES = ['', 'Easy', 'Medium', 'Hard'];
 
 export default function TaskForm({ onSubmit, onCancel, editTask = null, customFactors = [] }) {
-  const [form,     setForm]     = useState({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20 });
+  const [form,     setForm]     = useState({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20, link: '' });
   const [cfValues, setCfValues] = useState({});
   const [errors,   setErrors]   = useState({});
 
@@ -16,10 +16,11 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
         difficulty:   editTask.difficulty   || '',
         isProject:    editTask.isProject    || false,
         projectBoost: editTask.projectBoost ?? 20,
+        link:         editTask.link         || '',
       });
       setCfValues(editTask.customFactors || {});
     } else {
-      setForm({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20 });
+      setForm({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20, link: '' });
       setCfValues({});
     }
     setErrors({});
@@ -50,9 +51,10 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
       isProject:     form.isProject,
       projectBoost:  form.isProject ? Number(form.projectBoost) || 0 : 0,
       customFactors: cfValues,
+      link:          form.link.trim(),
     });
     if (!editTask) {
-      setForm({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20 });
+      setForm({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20, link: '' });
       setCfValues({});
     }
   }
@@ -71,6 +73,14 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
           value={form.title} onChange={handleChange}
           className={errors.title ? 'input-error' : ''} />
         {errors.title && <span className="error-msg">{errors.title}</span>}
+      </div>
+
+      {/* Link */}
+      <div className="field">
+        <label htmlFor="link">Link <span className="optional">(optional)</span></label>
+        <input id="link" name="link" type="url"
+          placeholder="https://..."
+          value={form.link} onChange={handleChange} />
       </div>
 
       {/* Due date */}

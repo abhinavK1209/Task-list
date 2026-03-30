@@ -26,7 +26,17 @@ export default function TaskItem({ task, customFactors = [], projects = [], buil
 
       {/* Content */}
       <div className="task-content">
-        <span className="task-title">{task.title}</span>
+        {task.link ? (
+          <a className="task-title task-title-link" href={task.link} target="_blank" rel="noopener noreferrer">
+            {task.title}
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginLeft: 4 }}>
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </a>
+        ) : (
+          <span className="task-title">{task.title}</span>
+        )}
         {task.description && <span className="task-description">{task.description}</span>}
 
         <div className="task-meta">
