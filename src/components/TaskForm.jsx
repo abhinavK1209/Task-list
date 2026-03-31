@@ -51,7 +51,7 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
       description:   form.description.trim(),
       difficulty:    form.difficulty,
       isProject:     form.isProject,
-      projectBoost:  form.isProject ? Number(form.projectBoost) || 0 : 0,
+      projectBoost:  form.isProject ? Math.min(200, Math.max(0, Number(form.projectBoost) || 0)) : 0,
       customFactors: cfValues,
       link:          form.link.trim(),
     });

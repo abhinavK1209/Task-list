@@ -19,11 +19,12 @@ const FACTORS_KEY  = 'taskflow_factors';
 const BUILTIN_KEY  = 'taskflow_builtin';
 
 function localLoad(key, fallback) {
-  try { const r = localStorage.getItem(key); if (r) return JSON.parse(r); } catch {}
+  try { const r = localStorage.getItem(key); if (r) return JSON.parse(r); } catch (e) { console.warn('[localLoad] failed to parse', key, e); }
   return fallback;
 }
 
 function generateId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
@@ -52,6 +53,7 @@ export default function App() {
   const [showForm,      setShowForm]      = useState(false);
   const [showFactors,   setShowFactors]   = useState(false);
   const tabsRef = useRef(null);
+  const migratedUidRef = useRef(null);
 
   // ── Scroll wheel → horizontal scroll on tabs ──────────────────────────────
   useEffect(() => {
@@ -85,11 +87,10 @@ export default function App() {
     const taskUnsub = onSnapshot(
       collection(db, 'users', user.uid, 'tasks'),
       snap => {
-        const firestoreTasks = snap.docs.map(d => d.data());
-        setTasks(firestoreTasks);
+        setTasks(snap.docs.map(d => d.data()));
         setSyncing(false);
       },
-      () => setSyncing(false)
+      err => { console.error('Task sync error:', err); setSyncing(false); }
     );
 
     // Subscribe to settings
@@ -101,22 +102,29 @@ export default function App() {
           if (cf) setCustomFactors(cf);
           if (bc) setBuiltinConfig(bc);
         }
-      }
+      },
+      err => console.error('Settings sync error:', err)
     );
 
-    // On first sign-in: migrate localStorage tasks to Firestore if Firestore is empty
-    getDocs(collection(db, 'users', user.uid, 'tasks')).then(snap => {
-      if (snap.empty) {
-        const localTasks = localLoad(STORAGE_KEY, []);
-        if (localTasks.length > 0) {
-          const batch = writeBatch(db);
-          localTasks.forEach(t => {
-            batch.set(doc(db, 'users', user.uid, 'tasks', t.id), t);
-          });
-          batch.commit();
-        }
-      }
-    });
+    // On first sign-in: migrate localStorage tasks to Firestore if Firestore is empty.
+    // Guard with a ref so Strict Mode double-invocation doesn't migrate twice.
+    if (migratedUidRef.current !== user.uid) {
+      migratedUidRef.current = user.uid;
+      getDocs(collection(db, 'users', user.uid, 'tasks'))
+        .then(snap => {
+          if (snap.empty) {
+            const localTasks = localLoad(STORAGE_KEY, []);
+            if (localTasks.length > 0) {
+              const batch = writeBatch(db);
+              localTasks.forEach(t => {
+                batch.set(doc(db, 'users', user.uid, 'tasks', t.id), t);
+              });
+              return batch.commit();
+            }
+          }
+        })
+        .catch(err => console.error('Migration failed:', err));
+    }
 
     return () => { taskUnsub(); settingsUnsub(); };
   }, [user?.uid]);
@@ -127,20 +135,15 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks, user]);
 
+  // Consolidated settings sync — single write covers both customFactors and builtinConfig
   useEffect(() => {
     localStorage.setItem(FACTORS_KEY, JSON.stringify(customFactors));
-    if (user && db) {
-      // Also sync settings to Firestore
-      setDoc(doc(db, 'users', user.uid, 'settings', 'main'), { customFactors, builtinConfig }, { merge: true });
-    }
-  }, [customFactors, user?.uid]);
-
-  useEffect(() => {
     localStorage.setItem(BUILTIN_KEY, JSON.stringify(builtinConfig));
     if (user && db) {
-      setDoc(doc(db, 'users', user.uid, 'settings', 'main'), { customFactors, builtinConfig }, { merge: true });
+      setDoc(doc(db, 'users', user.uid, 'settings', 'main'), { customFactors, builtinConfig }, { merge: true })
+        .catch(err => console.error('Failed to save settings:', err));
     }
-  }, [builtinConfig, user?.uid]);
+  }, [customFactors, builtinConfig, user?.uid]);
 
   // Refresh every second when timed tasks exist (for countdown), else every minute
   const hasTimedTasks = tasks.some(t => t.dueTime && !t.completed);
@@ -151,37 +154,51 @@ export default function App() {
   }, [hasTimedTasks]);
 
   // ── CRUD ─────────────────────────────────────────────────────────────────
-  async function firestoreSet(task) {
-    if (user && db) await setDoc(doc(db, 'users', user.uid, 'tasks', task.id), task);
-    else setTasks(prev => {
-      const exists = prev.find(t => t.id === task.id);
-      return exists ? prev.map(t => t.id === task.id ? task : t) : [...prev, task];
-    });
-  }
+  const firestoreSet = useCallback(async (task) => {
+    if (user && db) {
+      try {
+        await setDoc(doc(db, 'users', user.uid, 'tasks', task.id), task);
+      } catch (err) {
+        console.error('Failed to save task:', err);
+      }
+    } else {
+      setTasks(prev => {
+        const exists = prev.find(t => t.id === task.id);
+        return exists ? prev.map(t => t.id === task.id ? task : t) : [...prev, task];
+      });
+    }
+  }, [user]);
 
-  async function firestoreDelete(id) {
-    if (user && db) await deleteDoc(doc(db, 'users', user.uid, 'tasks', id));
-    else setTasks(prev => prev.filter(t => t.id !== id));
-  }
+  const firestoreDelete = useCallback(async (id) => {
+    if (user && db) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'tasks', id));
+      } catch (err) {
+        console.error('Failed to delete task:', err);
+      }
+    } else {
+      setTasks(prev => prev.filter(t => t.id !== id));
+    }
+  }, [user]);
 
   const handleAddTask = useCallback((formData) => {
     const newTask = { id: generateId(), ...formData, completed: false, createdAt: Date.now() };
     firestoreSet(newTask);
     setShowForm(false);
-  }, [user?.uid]);
+  }, [firestoreSet]);
 
   const handleEditSubmit = useCallback((formData) => {
     firestoreSet({ ...editTask, ...formData });
     setEditTask(null); setShowForm(false);
-  }, [editTask, user?.uid]);
+  }, [firestoreSet, editTask]);
 
   const handleComplete = useCallback((id) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
     firestoreSet({ ...task, completed: !task.completed, completedAt: !task.completed ? Date.now() : undefined });
-  }, [tasks, user?.uid]);
+  }, [tasks, firestoreSet]);
 
-  const handleDelete = useCallback((id) => firestoreDelete(id), [user?.uid]);
+  const handleDelete = useCallback((id) => firestoreDelete(id), [firestoreDelete]);
 
   const handleEditOpen = useCallback((task) => {
     setEditTask(task); setShowForm(true);

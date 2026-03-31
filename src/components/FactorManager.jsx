@@ -242,7 +242,10 @@ function FactorEditor({ factor, onChange, onDelete }) {
             <input type="text" placeholder="Label" value={opt.label}
               onChange={e => setOption(i, 'label', e.target.value)} className="option-label-input" />
             <input type="number" placeholder="Score" min="0" max="200" value={opt.score}
-              onChange={e => setOption(i, 'score', e.target.value)} className="option-score-input" />
+              onChange={e => {
+                const clamped = e.target.value === '' ? '' : String(Math.min(200, Math.max(0, Number(e.target.value) || 0)));
+                setOption(i, 'score', clamped);
+              }} className="option-score-input" />
             <span className="option-pts-label">pts</span>
             <button className="btn-icon" onClick={() => removeOption(i)} disabled={factor.options.length <= 1}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

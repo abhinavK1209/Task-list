@@ -38,13 +38,15 @@ export default function AuthModal({ onClose }) {
       } else if (mode === 'reset') {
         await sendPasswordResetEmail(auth, email);
         setResetSent(true);
-        setLoading(false); return;
+        setLoading(false);
+        return;
       }
+      setLoading(false);
       onClose();
     } catch (err) {
       setError(friendlyError(err.code));
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const titles = { signin: 'Sign In', signup: 'Create Account', reset: 'Reset Password' };
