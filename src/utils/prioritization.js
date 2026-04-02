@@ -35,6 +35,13 @@ function parseLocalDate(str) {
   return new Date(y, m - 1, d);
 }
 
+// Parse YYYY-MM-DD + HH:MM as local datetime
+function parseLocalDateTime(dateStr, timeStr) {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const [h, min]   = timeStr.split(':').map(Number);
+  return new Date(y, mo - 1, d, h, min, 0);
+}
+
 // ── 1. URGENCY SCORE ─────────────────────────────────────────────────────────
 function urgencyScore(dueDateStr, brackets = DEFAULT_BUILTIN.urgency) {
   if (!dueDateStr) return 0;
@@ -119,21 +126,65 @@ export function sortByPriority(tasks, customFactors = [], _unused = [], builtinC
 }
 
 // ── DAYS UNTIL DUE ───────────────────────────────────────────────────────────
-export function daysUntil(dueDateStr) {
+// When dueTimeStr is provided, returns fractional days (can be negative if overdue)
+export function daysUntil(dueDateStr, dueTimeStr = '') {
   if (!dueDateStr) return Infinity;
-  const now = new Date(); now.setHours(0, 0, 0, 0);
-  const due = parseLocalDate(dueDateStr);
-  return Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  const now = new Date();
+  if (dueTimeStr) {
+    const due = parseLocalDateTime(dueDateStr, dueTimeStr);
+    return (due - now) / 86400000;
+  }
+  now.setHours(0, 0, 0, 0);
+  return Math.ceil((parseLocalDate(dueDateStr) - now) / 86400000);
 }
 
 // ── HUMAN-READABLE DUE DATE ──────────────────────────────────────────────────
-export function formatDueDate(dueDateStr) {
+export function formatDueDate(dueDateStr, dueTimeStr = '') {
   if (!dueDateStr) return 'No due date';
-  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const now = new Date();
+
+  if (dueTimeStr) {
+    const due    = parseLocalDateTime(dueDateStr, dueTimeStr);
+    const diffMs = due - now;
+    const timeFmt = due.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const dateFmt = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const label   = `${dateFmt} at ${timeFmt}`;
+
+    if (diffMs < 0) {
+      const abs = -diffMs;
+      if (abs < 3600000) {
+        const m = Math.floor(abs / 60000), s = Math.floor((abs % 60000) / 1000);
+        return `${label} (${m}m ${s}s overdue)`;
+      }
+      if (abs < 86400000) {
+        const h = Math.floor(abs / 3600000), m = Math.floor((abs % 3600000) / 60000);
+        return `${label} (${h}h ${m}m overdue)`;
+      }
+      return `${label} (${Math.floor(abs / 86400000)}d overdue)`;
+    }
+    if (diffMs < 60000) {
+      return `${label} (${Math.ceil(diffMs / 1000)}s left)`;
+    }
+    if (diffMs < 3600000) {
+      const m = Math.floor(diffMs / 60000), s = Math.floor((diffMs % 60000) / 1000);
+      return `${label} (${m}m ${s}s left)`;
+    }
+    if (diffMs < 86400000) {
+      const h = Math.floor(diffMs / 3600000), m = Math.floor((diffMs % 3600000) / 60000);
+      return `${label} (${h}h ${m}m left)`;
+    }
+    const nowDay = new Date(now); nowDay.setHours(0, 0, 0, 0);
+    const days = Math.ceil((parseLocalDate(dueDateStr) - nowDay) / 86400000);
+    if (days === 1) return `${label} (Tomorrow)`;
+    return `${label} (${days}d left)`;
+  }
+
+  // Date-only (original behaviour)
+  now.setHours(0, 0, 0, 0);
   const due = parseLocalDate(dueDateStr);
-  const d = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  const d   = Math.ceil((due - now) / 86400000);
   const fmt = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  if (d < 0)  return `${fmt} (${Math.abs(d)}d overdue)`;
+  if (d < 0)   return `${fmt} (${Math.abs(d)}d overdue)`;
   if (d === 0) return `${fmt} (Due today)`;
   if (d === 1) return `${fmt} (Tomorrow)`;
   if (d <= 7)  return `${fmt} (${d}d left)`;

@@ -142,11 +142,13 @@ export default function App() {
     }
   }, [builtinConfig, user?.uid]);
 
-  // Refresh priority scores every minute
+  // Refresh every second when timed tasks exist (for countdown), else every minute
+  const hasTimedTasks = tasks.some(t => t.dueTime && !t.completed);
   useEffect(() => {
-    const t = setInterval(() => setTasks(p => [...p]), 60_000);
+    const ms = hasTimedTasks ? 1_000 : 60_000;
+    const t = setInterval(() => setTasks(p => [...p]), ms);
     return () => clearInterval(t);
-  }, []);
+  }, [hasTimedTasks]);
 
   // ── CRUD ─────────────────────────────────────────────────────────────────
   async function firestoreSet(task) {
@@ -226,9 +228,9 @@ export default function App() {
   });
   const counts = {
     all:        active.length,
-    overdue:    active.filter(t => daysUntil(t.dueDate) < 0).length,
-    'due-soon': active.filter(t => { const d = daysUntil(t.dueDate); return d >= 0 && d <= 7; }).length,
-    upcoming:   active.filter(t => daysUntil(t.dueDate) > 7).length,
+    overdue:    active.filter(t => daysUntil(t.dueDate, t.dueTime) < 0).length,
+    'due-soon': active.filter(t => { const d = daysUntil(t.dueDate, t.dueTime); return d >= 0 && d <= 7; }).length,
+    upcoming:   active.filter(t => daysUntil(t.dueDate, t.dueTime) > 7).length,
     projects:   active.filter(t => t.isProject).length,
     completed:  tasks.filter(t => t.completed).length,
     ...cfCounts,

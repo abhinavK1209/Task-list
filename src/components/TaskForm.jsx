@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 const DIFFICULTIES = ['', 'Easy', 'Medium', 'Hard'];
 
 export default function TaskForm({ onSubmit, onCancel, editTask = null, customFactors = [] }) {
-  const [form,     setForm]     = useState({ title: '', dueDate: '', description: '', difficulty: '', isProject: false, projectBoost: 20, link: '' });
+  const [form,     setForm]     = useState({ title: '', dueDate: '', dueTime: '', description: '', difficulty: '', isProject: false, projectBoost: 20, link: '' });
   const [cfValues, setCfValues] = useState({});
   const [errors,   setErrors]   = useState({});
 
@@ -12,6 +12,7 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
       setForm({
         title:        editTask.title        || '',
         dueDate:      editTask.dueDate      || '',
+        dueTime:      editTask.dueTime      || '',
         description:  editTask.description  || '',
         difficulty:   editTask.difficulty   || '',
         isProject:    editTask.isProject    || false,
@@ -46,6 +47,7 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
     onSubmit({
       title:         form.title.trim(),
       dueDate:       form.dueDate,
+      dueTime:       form.dueTime,
       description:   form.description.trim(),
       difficulty:    form.difficulty,
       isProject:     form.isProject,
@@ -83,12 +85,17 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
           value={form.link} onChange={handleChange} />
       </div>
 
-      {/* Due date */}
+      {/* Due date + time */}
       <div className="field">
         <label htmlFor="dueDate">Due Date *</label>
-        <input id="dueDate" name="dueDate" type="date"
-          value={form.dueDate} onChange={handleChange}
-          className={errors.dueDate ? 'input-error' : ''} />
+        <div className="date-time-row">
+          <input id="dueDate" name="dueDate" type="date"
+            value={form.dueDate} onChange={handleChange}
+            className={errors.dueDate ? 'input-error' : ''} />
+          <input id="dueTime" name="dueTime" type="time"
+            value={form.dueTime} onChange={handleChange}
+            className="due-time-input" />
+        </div>
         {errors.dueDate && <span className="error-msg">{errors.dueDate}</span>}
       </div>
 

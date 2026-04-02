@@ -19,9 +19,9 @@ export default function TaskList({
   // ── Get filtered active tasks for current tab ──────────────────────────────
   function getFiltered() {
     if (filter === 'projects')  return active.filter(t => t.isProject);
-    if (filter === 'overdue')   return active.filter(t => daysUntil(t.dueDate) < 0);
-    if (filter === 'due-soon')  return active.filter(t => { const d = daysUntil(t.dueDate); return d >= 0 && d <= 7; });
-    if (filter === 'upcoming')  return active.filter(t => daysUntil(t.dueDate) > 7);
+    if (filter === 'overdue')   return active.filter(t => daysUntil(t.dueDate, t.dueTime) < 0);
+    if (filter === 'due-soon')  return active.filter(t => { const d = daysUntil(t.dueDate, t.dueTime); return d >= 0 && d <= 7; });
+    if (filter === 'upcoming')  return active.filter(t => daysUntil(t.dueDate, t.dueTime) > 7);
     if (filter === 'completed') return [...completed].sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
     const cfMatch = filter.match(/^cf-(.+)/);
     if (cfMatch) return active.filter(t => t.customFactors?.[cfMatch[1]]);

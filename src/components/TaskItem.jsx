@@ -8,8 +8,8 @@ export default function TaskItem({
 }) {
   const score       = computePriorityScore(task, customFactors, [], builtinConfig);
   const label       = priorityLabel(score);
-  const dueDateText = formatDueDate(task.dueDate);
-  const isOverdue   = !task.completed && daysUntil(task.dueDate) < 0;
+  const dueDateText = formatDueDate(task.dueDate, task.dueTime);
+  const isOverdue   = !task.completed && daysUntil(task.dueDate, task.dueTime) < 0;
   const isManual    = task.manualOrder !== undefined;
 
   const cls = [
