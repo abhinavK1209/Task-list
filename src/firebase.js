@@ -1,16 +1,18 @@
 /**
  * Firebase initialization.
- * If VITE_FIREBASE_API_KEY is not set, auth and db remain null
+ * If VITE_FIREBASE_API_KEY is not set, auth/db/storage remain null
  * and the app falls back to localStorage-only mode gracefully.
  */
-import { initializeApp }            from 'firebase/app';
-import { getAuth }                  from 'firebase/auth';
-import { getFirestore }             from 'firebase/firestore';
+import { initializeApp }  from 'firebase/app';
+import { getAuth }        from 'firebase/auth';
+import { getFirestore }   from 'firebase/firestore';
+import { getStorage }     from 'firebase/storage';
 
 export const FIREBASE_CONFIGURED = !!import.meta.env.VITE_FIREBASE_API_KEY;
 
-let auth = null;
-let db   = null;
+let auth    = null;
+let db      = null;
+let storage = null;
 
 if (FIREBASE_CONFIGURED) {
   const app = initializeApp({
@@ -21,8 +23,9 @@ if (FIREBASE_CONFIGURED) {
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId:             import.meta.env.VITE_FIREBASE_APP_ID,
   });
-  auth = getAuth(app);
-  db   = getFirestore(app);
+  auth    = getAuth(app);
+  db      = getFirestore(app);
+  storage = getStorage(app);
 }
 
-export { auth, db };
+export { auth, db, storage };

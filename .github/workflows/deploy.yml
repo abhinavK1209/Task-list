@@ -2,7 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/productivity-task-app-LTJXe]
+    branches:
+      - claude/productivity-task-app-LTJXe
+      - claude/productivity-task-app-NsTi4
   workflow_dispatch: # allows manual trigger from GitHub UI
 
 permissions:
