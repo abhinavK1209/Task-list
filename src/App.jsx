@@ -9,6 +9,8 @@ import TaskForm      from './components/TaskForm';
 import TaskList      from './components/TaskList';
 import FactorManager from './components/FactorManager';
 import AuthModal     from './components/AuthModal';
+import ProfileModal  from './components/ProfileModal';
+import IcsImport     from './components/IcsImport';
 import { daysUntil, DEFAULT_BUILTIN } from './utils/prioritization';
 import { auth, db, FIREBASE_CONFIGURED } from './firebase';
 import './App.css';
@@ -41,7 +43,10 @@ export default function App() {
   const [user,        setUser]        = useState(null);
   const [authReady,   setAuthReady]   = useState(!FIREBASE_CONFIGURED);
   const [showAuth,    setShowAuth]    = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showIcs,     setShowIcs]     = useState(false);
   const [syncing,     setSyncing]     = useState(false);
+  const [profileData, setProfileData] = useState({ displayName: '', avatarColor: '#3b82f6' });
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [tasks,         setTasks]         = useState(() => localLoad(STORAGE_KEY,  []));
@@ -104,6 +109,20 @@ export default function App() {
       }
     );
 
+    // Load profile
+    const profileUnsub = onSnapshot(
+      doc(db, 'users', user.uid, 'settings', 'profile'),
+      snap => {
+        if (snap.exists()) {
+          const { displayName, avatarColor } = snap.data();
+          setProfileData(p => ({
+            displayName: displayName ?? p.displayName,
+            avatarColor: avatarColor ?? p.avatarColor,
+          }));
+        }
+      }
+    );
+
     // On first sign-in: migrate localStorage tasks to Firestore if Firestore is empty
     getDocs(collection(db, 'users', user.uid, 'tasks')).then(snap => {
       if (snap.empty) {
@@ -118,7 +137,7 @@ export default function App() {
       }
     });
 
-    return () => { taskUnsub(); settingsUnsub(); };
+    return () => { taskUnsub(); settingsUnsub(); profileUnsub(); };
   }, [user?.uid]);
 
   // ── localStorage sync (when logged out) ───────────────────────────────────
@@ -220,6 +239,13 @@ export default function App() {
     setBuiltinConfig(bc);
   }
 
+  const handleImportTasks = useCallback((importedTasks) => {
+    importedTasks.forEach(taskData => {
+      const newTask = { id: generateId(), ...taskData, completed: false, createdAt: Date.now() };
+      firestoreSet(newTask);
+    });
+  }, [user?.uid]);
+
   // ── Tab counts ────────────────────────────────────────────────────────────
   const active = tasks.filter(t => !t.completed);
   const cfCounts = {};
@@ -264,8 +290,16 @@ export default function App() {
                 user ? (
                   <div className="user-info">
                     {syncing && <span className="sync-dot" title="Syncing…" />}
+                    <button
+                      className="avatar-btn"
+                      style={{ background: profileData.avatarColor }}
+                      onClick={() => setShowProfile(true)}
+                      title="Edit profile"
+                    >
+                      {(profileData.displayName || user.email).charAt(0).toUpperCase()}
+                    </button>
                     <span className="user-email" title={user.email}>
-                      {user.email.split('@')[0]}
+                      {profileData.displayName || user.email.split('@')[0]}
                     </span>
                     <button className="btn-settings" onClick={() => signOut(auth)}>Sign Out</button>
                   </div>
@@ -279,6 +313,15 @@ export default function App() {
                   </button>
                 )
               )}
+              <button className="btn-settings" onClick={() => setShowIcs(true)} title="Import .ics calendar file">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Import
+              </button>
               <button className="btn-settings" onClick={() => setShowFactors(true)}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="3"/>
@@ -384,6 +427,22 @@ export default function App() {
 
       {showAuth && FIREBASE_CONFIGURED && (
         <AuthModal onClose={() => setShowAuth(false)} />
+      )}
+
+      {showProfile && user && FIREBASE_CONFIGURED && (
+        <ProfileModal
+          user={user}
+          profileData={profileData}
+          onClose={() => setShowProfile(false)}
+          onSaved={data => setProfileData(data)}
+        />
+      )}
+
+      {showIcs && (
+        <IcsImport
+          onImport={handleImportTasks}
+          onClose={() => setShowIcs(false)}
+        />
       )}
     </div>
   );

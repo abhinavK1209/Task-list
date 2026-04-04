@@ -588,6 +588,64 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); line
   animation: pulse 1s ease-in-out infinite;
 }
 
+/* ── Profile avatar button ───────────────────────────────────────────────────── */
+.avatar-btn {
+  width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent;
+  color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: opacity .15s, transform .1s;
+}
+.avatar-btn:hover { opacity: .85; transform: scale(1.07); }
+
+/* ── Profile modal large avatar ──────────────────────────────────────────────── */
+.profile-avatar-large {
+  width: 64px; height: 64px; border-radius: 50%; margin: 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 700; color: #fff;
+}
+
+/* ── Avatar color picker ─────────────────────────────────────────────────────── */
+.avatar-color-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.avatar-color-dot {
+  width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid transparent;
+  cursor: pointer; transition: transform .1s, border-color .1s;
+}
+.avatar-color-dot:hover { transform: scale(1.15); }
+.avatar-color-dot.selected { border-color: var(--text); transform: scale(1.15); }
+
+/* ── ICS drop zone ────────────────────────────────────────────────────────────── */
+.ics-dropzone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 40px 24px; display: flex; flex-direction: column;
+  align-items: center; gap: 12px; cursor: pointer;
+  color: var(--text-2); transition: border-color .15s, background .15s;
+  text-align: center;
+}
+.ics-dropzone:hover, .ics-dropzone.dragging {
+  border-color: var(--accent); background: #eff6ff; color: var(--accent);
+}
+.ics-dropzone-label { font-size: 14px; font-weight: 500; }
+
+/* ── ICS event list ───────────────────────────────────────────────────────────── */
+.ics-event-list { display: flex; flex-direction: column; gap: 6px; }
+.ics-event-list-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+}
+.ics-event-count { font-size: 13px; color: var(--text-2); font-weight: 500; }
+.ics-event-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; transition: border-color .12s, background .12s;
+}
+.ics-event-row:hover   { border-color: var(--accent); background: #f8faff; }
+.ics-event-row.selected { border-color: var(--accent); background: #eff6ff; }
+.ics-event-row input[type="checkbox"] { flex-shrink: 0; margin-top: 2px; accent-color: var(--accent); }
+.ics-event-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ics-event-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.ics-event-meta  { font-size: 12px; color: var(--text-2); }
+.ics-event-desc  { font-size: 12px; color: var(--text-3); }
+
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 500px) {
   .stats-bar { padding: 12px 12px; }
