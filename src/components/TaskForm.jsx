@@ -41,14 +41,21 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
     e.preventDefault();
     const errs = {};
     if (!form.title.trim()) errs.title = 'Title is required.';
-    if (!form.dueDate)      errs.dueDate = 'Due date is required.';
+    if (form.title.trim().length > 200) errs.title = 'Title must be under 200 characters.';
+    if (!form.dueDate) errs.dueDate = 'Due date is required.';
+    if (form.link.trim()) {
+      try {
+        const u = new URL(form.link.trim());
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') errs.link = 'Link must start with http:// or https://';
+      } catch { errs.link = 'Please enter a valid URL (e.g. https://example.com)'; }
+    }
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     onSubmit({
-      title:         form.title.trim(),
+      title:         form.title.trim().slice(0, 200),
       dueDate:       form.dueDate,
       dueTime:       form.dueTime,
-      description:   form.description.trim(),
+      description:   form.description.trim().slice(0, 2000),
       difficulty:    form.difficulty,
       isProject:     form.isProject,
       projectBoost:  form.isProject ? Number(form.projectBoost) || 0 : 0,
@@ -82,7 +89,9 @@ export default function TaskForm({ onSubmit, onCancel, editTask = null, customFa
         <label htmlFor="link">Link <span className="optional">(optional)</span></label>
         <input id="link" name="link" type="url"
           placeholder="https://..."
-          value={form.link} onChange={handleChange} />
+          value={form.link} onChange={handleChange}
+          className={errors.link ? 'input-error' : ''} />
+        {errors.link && <span className="error-msg">{errors.link}</span>}
       </div>
 
       {/* Due date + time */}

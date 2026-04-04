@@ -47,6 +47,7 @@ export default function App() {
   const [showIcs,     setShowIcs]     = useState(false);
   const [syncing,     setSyncing]     = useState(false);
   const [profileData, setProfileData] = useState({ displayName: '', avatarColor: '#3b82f6', photoURL: '' });
+  const [migratedCount, setMigratedCount] = useState(0);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [tasks,         setTasks]         = useState(() => localLoad(STORAGE_KEY,  []));
@@ -124,17 +125,22 @@ export default function App() {
       }
     );
 
-    // On first sign-in: migrate localStorage tasks to Firestore if Firestore is empty
+    // Migrate any local guest tasks into Firestore on sign-in.
+    // Merges by task ID — won't duplicate tasks already in Firestore.
     getDocs(collection(db, 'users', user.uid, 'tasks')).then(snap => {
-      if (snap.empty) {
-        const localTasks = localLoad(STORAGE_KEY, []);
-        if (localTasks.length > 0) {
-          const batch = writeBatch(db);
-          localTasks.forEach(t => {
-            batch.set(doc(db, 'users', user.uid, 'tasks', t.id), t);
-          });
-          batch.commit();
-        }
+      const localTasks = localLoad(STORAGE_KEY, []);
+      if (localTasks.length === 0) return;
+      const firestoreIds = new Set(snap.docs.map(d => d.id));
+      const toMigrate = localTasks.filter(t => !firestoreIds.has(t.id));
+      if (toMigrate.length > 0) {
+        const batch = writeBatch(db);
+        toMigrate.forEach(t => {
+          batch.set(doc(db, 'users', user.uid, 'tasks', t.id), t);
+        });
+        batch.commit().then(() => {
+          setMigratedCount(toMigrate.length);
+          setTimeout(() => setMigratedCount(0), 6000);
+        });
       }
     });
 
@@ -342,6 +348,17 @@ export default function App() {
         </div>
       </header>
 
+      {migratedCount > 0 && (
+        <div className="migration-banner">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          {migratedCount} guest task{migratedCount !== 1 ? 's' : ''} saved to your account.
+          <button className="migration-dismiss" onClick={() => setMigratedCount(0)}>✕</button>
+        </div>
+      )}
+
       <main className="app-main">
         <div className="stats-bar">
           {[
@@ -444,6 +461,7 @@ export default function App() {
 
       {showIcs && (
         <IcsImport
+          existingTasks={tasks}
           onImport={handleImportTasks}
           onClose={() => setShowIcs(false)}
         />

@@ -8,21 +8,16 @@ function unfold(text) {
 
 function parseIcsDate(value) {
   if (!value) return { date: '', time: '' };
-
-  // DATE-only: YYYYMMDD
   if (/^\d{8}$/.test(value)) {
     return {
       date: `${value.slice(0,4)}-${value.slice(4,6)}-${value.slice(6,8)}`,
       time: '',
     };
   }
-
-  // DATETIME: YYYYMMDDTHHmmss[Z]
   if (/^\d{8}T\d{6}(Z)?$/.test(value)) {
     const yr = value.slice(0,4), mo = value.slice(4,6), dy = value.slice(6,8);
     const hr = value.slice(9,11), mn = value.slice(11,13);
     if (value.endsWith('Z')) {
-      // UTC → local
       const d = new Date(`${yr}-${mo}-${dy}T${hr}:${mn}:00Z`);
       return {
         date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
@@ -31,7 +26,6 @@ function parseIcsDate(value) {
     }
     return { date: `${yr}-${mo}-${dy}`, time: `${hr}:${mn}` };
   }
-
   return { date: '', time: '' };
 }
 
@@ -43,39 +37,38 @@ function unescape(val) {
     .replace(/\\\\/g, '\\');
 }
 
+function sanitizeUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url.trim());
+    return (u.protocol === 'http:' || u.protocol === 'https:') ? url.trim() : '';
+  } catch { return ''; }
+}
+
 function parseIcs(text) {
   const lines = unfold(text).split(/\r?\n/);
   const events = [];
   let cur = null;
-
   for (const raw of lines) {
     const line = raw.trim();
     if (line === 'BEGIN:VEVENT') { cur = {}; continue; }
     if (line === 'END:VEVENT')   { if (cur) events.push(cur); cur = null; continue; }
     if (!cur) continue;
-
     const ci = line.indexOf(':');
     if (ci === -1) continue;
     const propFull = line.slice(0, ci);
     const val      = line.slice(ci + 1);
     const propName = propFull.split(';')[0].toUpperCase();
-
-    // Store raw value; for DTSTART/DTEND keep the raw datetime string
     cur[propName] = val;
   }
-
   return events;
 }
 
 function icsToTask(event) {
-  const title       = unescape(event.SUMMARY       || 'Untitled Event').trim();
-  const description = unescape(event.DESCRIPTION   || '').trim();
-  const url         = (event.URL || '').trim();
-
-  // DTSTART: strip TZID params — we already split at first colon, so value is clean
+  const title       = unescape(event.SUMMARY     || 'Untitled Event').trim().slice(0, 200);
+  const description = unescape(event.DESCRIPTION || '').trim().slice(0, 2000);
+  const url         = sanitizeUrl(event.URL || '');
   const { date, time } = parseIcsDate(event.DTSTART || '');
-
-  // PRIORITY mapping per RFC 5545: 1-4=high 5=medium 6-9=low
   let difficulty = 'Medium';
   if (event.PRIORITY) {
     const p = parseInt(event.PRIORITY, 10);
@@ -84,15 +77,28 @@ function icsToTask(event) {
       else if (p >= 6 && p <= 9) difficulty = 'Easy';
     }
   }
-
   return { title, description, dueDate: date, dueTime: time, difficulty, isProject: false, projectBoost: 0, link: url, customFactors: {} };
+}
+
+// ── Duplicate detection ───────────────────────────────────────────────────────
+// status: 'new' | 'duplicate' (same title+date) | 'conflict' (same title, diff date)
+
+function classify(task, existingTasks) {
+  const norm = t => t.title.trim().toLowerCase();
+  const matches = existingTasks.filter(t => !t.completed && norm(t) === norm(task));
+  if (matches.length === 0) return { status: 'new' };
+  const exact = matches.find(t => t.dueDate === task.dueDate);
+  if (exact) return { status: 'duplicate', existing: exact };
+  return { status: 'conflict', existing: matches[0] };
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function IcsImport({ onImport, onClose }) {
-  const [events,   setEvents]   = useState(null);   // null = not yet parsed
+export default function IcsImport({ existingTasks = [], onImport, onClose }) {
+  const [events,   setEvents]   = useState(null); // [{task, status, existing}]
   const [selected, setSelected] = useState(new Set());
+  // For conflicts: user can pick 'ics' (keep ICS date) or 'existing' (keep existing date)
+  const [datePick, setDatePick] = useState({}); // { index: 'ics' | 'existing' }
   const [error,    setError]    = useState('');
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef();
@@ -104,9 +110,21 @@ export default function IcsImport({ onImport, onClose }) {
         setError('No events found. Make sure the file is a valid .ics calendar export.');
         return;
       }
-      const tasks = raw.map(icsToTask);
-      setEvents(tasks);
-      setSelected(new Set(tasks.map((_, i) => i)));
+      const classified = raw.map(e => {
+        const task = icsToTask(e);
+        const { status, existing } = classify(task, existingTasks);
+        return { task, status, existing };
+      });
+      setEvents(classified);
+      // Default: select new + conflict, skip exact duplicates
+      const defaultSelected = new Set(
+        classified.map((e, i) => i).filter(i => classified[i].status !== 'duplicate')
+      );
+      setSelected(defaultSelected);
+      // Default date pick for conflicts: use ICS date
+      const picks = {};
+      classified.forEach((e, i) => { if (e.status === 'conflict') picks[i] = 'ics'; });
+      setDatePick(picks);
       setError('');
     } catch {
       setError('Could not read the calendar file. Please try again.');
@@ -131,11 +149,14 @@ export default function IcsImport({ onImport, onClose }) {
   }
 
   function toggleAll() {
-    if (selected.size === events.length) setSelected(new Set());
-    else setSelected(new Set(events.map((_, i) => i)));
+    const selectable = events.map((_, i) => i).filter(i => events[i].status !== 'duplicate');
+    const allOn = selectable.every(i => selected.has(i));
+    if (allOn) setSelected(new Set());
+    else setSelected(new Set(selectable));
   }
 
   function toggle(i) {
+    if (events[i].status === 'duplicate') return; // can't import exact duplicates
     setSelected(prev => {
       const next = new Set(prev);
       next.has(i) ? next.delete(i) : next.add(i);
@@ -144,16 +165,26 @@ export default function IcsImport({ onImport, onClose }) {
   }
 
   function handleImport() {
-    const toAdd = events.filter((_, i) => selected.has(i));
+    const toAdd = events
+      .filter((_, i) => selected.has(i))
+      .map(({ task, status, existing }, i) => {
+        if (status === 'conflict' && datePick[i] === 'existing') {
+          return { ...task, dueDate: existing.dueDate, dueTime: existing.dueTime || '' };
+        }
+        return task;
+      });
     if (toAdd.length === 0) return;
     onImport(toAdd);
     onClose();
   }
 
+  const newCount  = events ? events.filter(e => e.status === 'new').length : 0;
+  const dupCount  = events ? events.filter(e => e.status === 'duplicate').length : 0;
+  const confCount = events ? events.filter(e => e.status === 'conflict').length : 0;
+
   return (
     <div className="factor-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="factor-panel">
-        {/* Header */}
         <div className="factor-panel-header">
           <h2>Import from Calendar (.ics)</h2>
           <button className="btn-icon" onClick={onClose} title="Close">
@@ -164,12 +195,11 @@ export default function IcsImport({ onImport, onClose }) {
         </div>
 
         <p className="factor-panel-desc">
-          Upload a <strong>.ics</strong> file exported from Google Calendar, Apple Calendar, Outlook, or any other calendar app.
-          Events are imported as tasks with their title, date, and description.
+          Upload a <strong>.ics</strong> file from Google Calendar, Apple Calendar, Outlook, etc.
+          Exact duplicates are detected and skipped automatically.
         </p>
 
         <div className="factor-list">
-          {/* Drop zone */}
           {!events && (
             <div
               className={`ics-dropzone${dragging ? ' dragging' : ''}`}
@@ -184,72 +214,94 @@ export default function IcsImport({ onImport, onClose }) {
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               <p className="ics-dropzone-label">Drop .ics file here or click to browse</p>
-              <input
-                ref={fileRef} type="file" accept=".ics,text/calendar"
+              <input ref={fileRef} type="file" accept=".ics,text/calendar"
                 style={{ display: 'none' }}
-                onChange={e => handleFile(e.target.files[0])}
-              />
+                onChange={e => handleFile(e.target.files[0])} />
             </div>
           )}
 
           {error && <p className="auth-error" style={{ margin: 0 }}>{error}</p>}
 
-          {/* Event list */}
           {events && (
             <div className="ics-event-list">
-              <div className="ics-event-list-header">
-                <span className="ics-event-count">
-                  {events.length} event{events.length !== 1 ? 's' : ''} found
-                </span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={toggleAll}>
-                  {selected.size === events.length ? 'Deselect all' : 'Select all'}
+              {/* Summary row */}
+              <div className="ics-summary-row">
+                <span className="ics-summary-chip ics-chip-new">{newCount} new</span>
+                {confCount > 0 && <span className="ics-summary-chip ics-chip-conflict">{confCount} date conflict{confCount !== 1 ? 's' : ''}</span>}
+                {dupCount  > 0 && <span className="ics-summary-chip ics-chip-dup">{dupCount} duplicate{dupCount !== 1 ? 's' : ''}</span>}
+                <button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={toggleAll}>
+                  {events.filter((_, i) => events[i].status !== 'duplicate').every((_, j) => {
+                    const realIdx = events.map((_, i) => i).filter(i => events[i].status !== 'duplicate')[j];
+                    return selected.has(realIdx);
+                  }) ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
 
-              {events.map((ev, i) => (
-                <label key={i} className={`ics-event-row${selected.has(i) ? ' selected' : ''}`}>
-                  <input
-                    type="checkbox" checked={selected.has(i)}
+              {events.map(({ task, status, existing }, i) => (
+                <div key={i} className={`ics-event-row${selected.has(i) ? ' selected' : ''}${status === 'duplicate' ? ' ics-row-dup' : ''}`}
+                  onClick={() => toggle(i)}
+                >
+                  <input type="checkbox" checked={selected.has(i)}
+                    disabled={status === 'duplicate'}
                     onChange={() => toggle(i)}
+                    onClick={e => e.stopPropagation()}
                   />
                   <div className="ics-event-info">
-                    <span className="ics-event-title">{ev.title}</span>
-                    <span className="ics-event-meta">
-                      {ev.dueDate
-                        ? `${ev.dueDate}${ev.dueTime ? ' at ' + ev.dueTime : ''}`
-                        : 'No date'}
-                      {' · '}{ev.difficulty}
-                    </span>
-                    {ev.description && (
-                      <span className="ics-event-desc">{ev.description.slice(0, 80)}{ev.description.length > 80 ? '…' : ''}</span>
+                    <div className="ics-event-title-row">
+                      <span className="ics-event-title">{task.title}</span>
+                      {status === 'duplicate' && <span className="ics-status-badge ics-badge-dup">Already exists</span>}
+                      {status === 'conflict'  && <span className="ics-status-badge ics-badge-conflict">Title exists · different date</span>}
+                    </div>
+
+                    {status === 'conflict' ? (
+                      <div className="ics-conflict-dates" onClick={e => e.stopPropagation()}>
+                        <label className={`ics-date-option${datePick[i] === 'ics' ? ' chosen' : ''}`}>
+                          <input type="radio" name={`date-${i}`} value="ics"
+                            checked={datePick[i] === 'ics'}
+                            onChange={() => setDatePick(p => ({ ...p, [i]: 'ics' }))} />
+                          Use ICS date: <strong>{task.dueDate || 'none'}</strong>
+                          {task.dueTime ? ` at ${task.dueTime}` : ''}
+                        </label>
+                        <label className={`ics-date-option${datePick[i] === 'existing' ? ' chosen' : ''}`}>
+                          <input type="radio" name={`date-${i}`} value="existing"
+                            checked={datePick[i] === 'existing'}
+                            onChange={() => setDatePick(p => ({ ...p, [i]: 'existing' }))} />
+                          Keep existing date: <strong>{existing.dueDate || 'none'}</strong>
+                          {existing.dueTime ? ` at ${existing.dueTime}` : ''}
+                        </label>
+                      </div>
+                    ) : (
+                      <span className="ics-event-meta">
+                        {task.dueDate ? `${task.dueDate}${task.dueTime ? ' at ' + task.dueTime : ''}` : 'No date'}
+                        {' · '}{task.difficulty}
+                        {status === 'duplicate' && existing.dueDate && ` (exists: ${existing.dueDate})`}
+                      </span>
+                    )}
+
+                    {task.description && (
+                      <span className="ics-event-desc">
+                        {task.description.slice(0, 80)}{task.description.length > 80 ? '…' : ''}
+                      </span>
                     )}
                   </div>
-                </label>
+                </div>
               ))}
             </div>
           )}
 
           {events && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
+            <button type="button" className="btn btn-ghost btn-sm"
               style={{ alignSelf: 'flex-start', marginTop: 4 }}
-              onClick={() => { setEvents(null); setError(''); }}
-            >
+              onClick={() => { setEvents(null); setError(''); }}>
               ← Choose different file
             </button>
           )}
         </div>
 
-        {/* Footer */}
         <div className="factor-panel-footer">
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           {events && (
-            <button
-              className="btn btn-primary"
-              disabled={selected.size === 0}
-              onClick={handleImport}
-            >
+            <button className="btn btn-primary" disabled={selected.size === 0} onClick={handleImport}>
               Import {selected.size > 0 ? selected.size : ''} Task{selected.size !== 1 ? 's' : ''}
             </button>
           )}
