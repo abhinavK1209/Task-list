@@ -19,6 +19,7 @@ import './App.css';
 const STORAGE_KEY  = 'taskflow_tasks';
 const FACTORS_KEY  = 'taskflow_factors';
 const BUILTIN_KEY  = 'taskflow_builtin';
+const PROFILE_KEY  = 'taskflow_profile';
 
 function localLoad(key, fallback) {
   try { const r = localStorage.getItem(key); if (r) return JSON.parse(r); } catch {}
@@ -46,7 +47,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showIcs,     setShowIcs]     = useState(false);
   const [syncing,     setSyncing]     = useState(false);
-  const [profileData, setProfileData] = useState({ displayName: '', avatarColor: '#3b82f6' });
+  const [profileData, setProfileData] = useState(() => localLoad(PROFILE_KEY, { displayName: '', avatarColor: '#3b82f6' }));
   const [migratedCount, setMigratedCount] = useState(0);
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -166,6 +167,10 @@ export default function App() {
       setDoc(doc(db, 'users', user.uid, 'settings', 'main'), { customFactors, builtinConfig }, { merge: true });
     }
   }, [builtinConfig, user?.uid]);
+
+  useEffect(() => {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profileData));
+  }, [profileData]);
 
   // Refresh every second when timed tasks exist (for countdown), else every minute
   const hasTimedTasks = tasks.some(t => t.dueTime && !t.completed);
