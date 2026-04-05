@@ -46,7 +46,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showIcs,     setShowIcs]     = useState(false);
   const [syncing,     setSyncing]     = useState(false);
-  const [profileData, setProfileData] = useState({ displayName: '', avatarColor: '#3b82f6', photoURL: '' });
+  const [profileData, setProfileData] = useState({ displayName: '', avatarColor: '#3b82f6' });
   const [migratedCount, setMigratedCount] = useState(0);
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -115,11 +115,10 @@ export default function App() {
       doc(db, 'users', user.uid, 'settings', 'profile'),
       snap => {
         if (snap.exists()) {
-          const { displayName, avatarColor, photoURL } = snap.data();
+          const { displayName, avatarColor } = snap.data();
           setProfileData(p => ({
             displayName: displayName ?? p.displayName,
             avatarColor: avatarColor ?? p.avatarColor,
-            photoURL:    photoURL    ?? p.photoURL,
           }));
         }
       }
@@ -299,14 +298,11 @@ export default function App() {
                     {syncing && <span className="sync-dot" title="Syncing…" />}
                     <button
                       className="avatar-btn"
-                      style={profileData.photoURL ? {} : { background: profileData.avatarColor }}
+                      style={{ background: profileData.avatarColor }}
                       onClick={() => setShowProfile(true)}
                       title="Edit profile"
                     >
-                      {profileData.photoURL
-                        ? <img src={profileData.photoURL} alt="avatar" className="avatar-btn-img" />
-                        : (profileData.displayName || user.email).charAt(0).toUpperCase()
-                      }
+                      {(profileData.displayName || user.email).charAt(0).toUpperCase()}
                     </button>
                     <span className="user-email" title={user.email}>
                       {profileData.displayName || user.email.split('@')[0]}
