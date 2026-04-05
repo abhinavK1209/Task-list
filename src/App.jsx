@@ -176,17 +176,19 @@ export default function App() {
   }, [hasTimedTasks]);
 
   // ── CRUD ─────────────────────────────────────────────────────────────────
+  // Always update local state immediately (optimistic) so UI doesn't wait
+  // for Firestore round-trip / onSnapshot. onSnapshot will confirm later.
   async function firestoreSet(task) {
-    if (user && db) await setDoc(doc(db, 'users', user.uid, 'tasks', task.id), task);
-    else setTasks(prev => {
+    setTasks(prev => {
       const exists = prev.find(t => t.id === task.id);
       return exists ? prev.map(t => t.id === task.id ? task : t) : [...prev, task];
     });
+    if (user && db) await setDoc(doc(db, 'users', user.uid, 'tasks', task.id), task);
   }
 
   async function firestoreDelete(id) {
+    setTasks(prev => prev.filter(t => t.id !== id));
     if (user && db) await deleteDoc(doc(db, 'users', user.uid, 'tasks', id));
-    else setTasks(prev => prev.filter(t => t.id !== id));
   }
 
   const handleAddTask = useCallback((formData) => {
@@ -219,11 +221,15 @@ export default function App() {
     const targetIdx = without.findIndex(t => t.id === targetId);
     const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
     without.splice(insertIdx, 0, displayList.find(t => t.id === draggedId));
-    // Assign manualOrder to every task now in displayList
-    without.forEach((t, i) => {
-      const updated = { ...t, manualOrder: i * 10 };
-      firestoreSet(updated);
-    });
+    const updated = without.map((t, i) => ({ ...t, manualOrder: i * 10 }));
+    // Update all local state at once (no flickering)
+    setTasks(prev => prev.map(t => updated.find(u => u.id === t.id) || t));
+    // Batch write to Firestore — single atomic operation, one onSnapshot
+    if (user && db) {
+      const batch = writeBatch(db);
+      updated.forEach(t => batch.set(doc(db, 'users', user.uid, 'tasks', t.id), t));
+      batch.commit();
+    }
   }
 
   function handleUnpin(id) {
@@ -234,10 +240,17 @@ export default function App() {
   }
 
   function handleResetOrder() {
-    tasks.filter(t => t.manualOrder !== undefined).forEach(t => {
-      const { manualOrder, ...rest } = t;
-      firestoreSet(rest);
-    });
+    const updated = tasks
+      .filter(t => t.manualOrder !== undefined)
+      .map(({ manualOrder, ...rest }) => rest);
+    // Update all local state at once
+    setTasks(prev => prev.map(t => updated.find(u => u.id === t.id) || t));
+    // Batch write
+    if (user && db) {
+      const batch = writeBatch(db);
+      updated.forEach(t => batch.set(doc(db, 'users', user.uid, 'tasks', t.id), t));
+      batch.commit();
+    }
   }
 
   function handleSaveFactors({ factors, builtinConfig: bc }) {
